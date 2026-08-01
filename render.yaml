@@ -1,0 +1,35 @@
+# Render Blueprint for ghrub.
+# Docs: create the service(s) from this file via Render "New > Blueprint".
+#
+# This defines the PRODUCTION service (deploys from `main`). For a staging
+# pre-prod service, either duplicate this block with name: ghrub-staging and
+# branch: staging, or create a second service in the Render UI from the same
+# repo pointing at the `staging` branch. Deploys are triggered by the GitHub
+# Actions deploy hooks (see docs/04-devops-cicd.md), so autoDeploy is off.
+
+services:
+  - type: web
+    name: ghrub
+    runtime: docker
+    plan: starter # a persistent disk requires a paid instance; verify current Render terms
+    branch: main
+    autoDeploy: false # GitHub Actions triggers deploys via deploy hook
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_PATH
+        value: /data/ghrub.db
+      - key: ENABLE_LLM
+        value: "false"
+      # ANTHROPIC_API_KEY: set in Render dashboard (secret) only if ENABLE_LLM=true
+      # GHRUB_PASSPHRASE: set in Render dashboard (secret) if you want a simple gate
+    disk:
+      name: ghrub-data
+      mountPath: /data
+      sizeGB: 1
+
+# --- Free-tier alternative (no paid disk) ---
+# Delete the `disk:` block above, set DATABASE_URL from a free Postgres
+# (Render Postgres / Neon / Supabase), and switch src/db/repo.js to pg
+# (see docs/05-agent-runbook.md "If you switch to free-tier Postgres").

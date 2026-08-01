@@ -1,0 +1,27 @@
+# deps
+node_modules/
+
+# build / coverage
+dist/
+coverage/
+
+# local data (SQLite lives on Render's disk in prod; local file here)
+data/
+*.db
+*.db-journal
+*.sqlite
+
+# env / secrets — NEVER commit
+.env
+.env.*
+!.env.example
+
+# os / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# logs
+*.log
+npm-debug.log*

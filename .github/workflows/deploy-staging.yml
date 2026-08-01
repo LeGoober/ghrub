@@ -1,0 +1,22 @@
+name: deploy-staging
+
+on:
+  push:
+    branches: [staging]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Trigger Render deploy (staging)
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_STAGING }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK_STAGING is not set. Add it in repo Settings > Secrets."
+            exit 1
+          fi
+          echo "Triggering Render staging deploy..."
+          curl -fsS -X POST "$HOOK"
+          echo "Deploy hook accepted."

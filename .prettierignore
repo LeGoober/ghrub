@@ -1,0 +1,12 @@
+node_modules
+coverage
+dist
+data
+*.db
+
+# prose, blueprints and pipeline YAML are hand-authored — not prettier-owned
+docs
+*.md
+.github
+render.yaml
+*.ejs

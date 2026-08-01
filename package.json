@@ -1,0 +1,33 @@
+{
+  "name": "ghrub",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Personal grocery intelligence — dated lists, habit detection, budgeting, store price comparison.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "seed": "node scripts/seed.js"
+  },
+  "dependencies": {
+    "ejs": "^3.1.10",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "eslint": "^9.17.0",
+    "nodemon": "^3.1.9",
+    "prettier": "^3.4.2",
+    "supertest": "^7.0.0",
+    "vitest": "^2.1.8"
+  },
+  "//deps-added-in-M1": "better-sqlite3 (SQLite). Native build — see Dockerfile note. Kept out of M0 so the first pipeline is dependency-light and guaranteed to build."
+}

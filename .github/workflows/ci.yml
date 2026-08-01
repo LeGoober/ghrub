@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [dev, staging, main]
+  push:
+    branches: [dev]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format
+
+      - name: Test
+        run: npm test
+
+      # M1+: once scripts/seed.js + schema exist, this proves the seed stays green.
+      # Guarded so it is a no-op until the seed script is added.
+      - name: Seed smoke (M1+)
+        run: '[ -f scripts/seed.js ] && node scripts/seed.js || echo "no seed yet (pre-M1) — skipping"'
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docker build
+        run: docker build -t ghrub:ci .

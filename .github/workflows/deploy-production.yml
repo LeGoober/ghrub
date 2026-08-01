@@ -1,0 +1,22 @@
+name: deploy-production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Trigger Render deploy (production)
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_PRODUCTION }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK_PRODUCTION is not set. Add it in repo Settings > Secrets."
+            exit 1
+          fi
+          echo "Triggering Render production deploy..."
+          curl -fsS -X POST "$HOOK"
+          echo "Deploy hook accepted."
