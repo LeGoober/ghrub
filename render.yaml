@@ -1,19 +1,25 @@
-# Render Blueprint for ghrub.
-# Docs: create the service(s) from this file via Render "New > Blueprint".
+# ===============================================================
+# Render Blueprint — ghrub
+# ===============================================================
+# Mirrors the Underground Terminal setup: multi-service blueprint, one web
+# service per branch, Docker runtime, deploys driven by the GitHub Actions
+# `render-deploy-action` using your RENDER_API_KEY (autoDeploy off so CI gates
+# the deploy).
 #
-# This defines the PRODUCTION service (deploys from `main`). For a staging
-# pre-prod service, either duplicate this block with name: ghrub-staging and
-# branch: staging, or create a second service in the Render UI from the same
-# repo pointing at the `staging` branch. Deploys are triggered by the GitHub
-# Actions deploy hooks (see docs/04-devops-cicd.md), so autoDeploy is off.
+# One-time setup: Render Dashboard -> New -> Blueprint -> pick the ghrub repo ->
+# it reads this file and creates both services. Copy each service's ID (srv-...)
+# into GitHub secrets (see docs/04-devops-cicd.md).
 
 services:
+  # ---- Production (main branch) ----
   - type: web
     name: ghrub
-    runtime: docker
-    plan: starter # a persistent disk requires a paid instance; verify current Render terms
+    env: docker
+    region: ohio # frankfurt is closer to ZA if you want lower latency — safe to change
+    plan: starter # required for a persistent disk (matches UT's starter plan)
     branch: main
-    autoDeploy: false # GitHub Actions triggers deploys via deploy hook
+    dockerfilePath: ./Dockerfile
+    autoDeploy: false # GitHub Actions triggers the deploy after CI passes
     healthCheckPath: /healthz
     envVars:
       - key: NODE_ENV
@@ -22,14 +28,43 @@ services:
         value: /data/ghrub.db
       - key: ENABLE_LLM
         value: "false"
-      # ANTHROPIC_API_KEY: set in Render dashboard (secret) only if ENABLE_LLM=true
-      # GHRUB_PASSPHRASE: set in Render dashboard (secret) if you want a simple gate
+      - key: GHRUB_PASSPHRASE
+        sync: false # set in the Render dashboard if you want a simple gate
+      - key: ANTHROPIC_API_KEY
+        sync: false # only needed when ENABLE_LLM=true (M5)
     disk:
       name: ghrub-data
       mountPath: /data
       sizeGB: 1
 
+  # ---- Staging (staging branch) ----
+  - type: web
+    name: ghrub-staging
+    env: docker
+    region: ohio
+    plan: starter
+    branch: staging
+    dockerfilePath: ./Dockerfile
+    autoDeploy: false
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_PATH
+        value: /data/ghrub.db
+      - key: ENABLE_LLM
+        value: "false"
+      - key: GHRUB_PASSPHRASE
+        sync: false
+    disk:
+      name: ghrub-staging-data
+      mountPath: /data
+      sizeGB: 1
+
 # --- Free-tier alternative (no paid disk) ---
-# Delete the `disk:` block above, set DATABASE_URL from a free Postgres
-# (Render Postgres / Neon / Supabase), and switch src/db/repo.js to pg
-# (see docs/05-agent-runbook.md "If you switch to free-tier Postgres").
+# Swap SQLite-on-disk for a Render managed Postgres (like UT does with
+# `fromDatabase`): delete each `disk:` block, add a `- type: postgresql` service
+# per branch, and inject its connection string as DATABASE_URL:
+#   - key: DATABASE_URL
+#     fromDatabase: { name: ghrub-db, property: connectionString }
+# Then point src/db/repo.js at pg (see docs/05-agent-runbook.md).

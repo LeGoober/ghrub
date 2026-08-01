@@ -1,22 +1,33 @@
 name: deploy-production
 
+# Deploys the `main` branch to the ghrub Render service after CI.
+# Uses your existing RENDER_API_KEY + the production service id.
+
 on:
   push:
     branches: [main]
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   deploy:
+    needs: ci
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - name: Trigger Render deploy (production)
+      - name: Guard — secrets present
         env:
-          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_PRODUCTION }}
+          KEY: ${{ secrets.RENDER_API_KEY }}
+          SID: ${{ secrets.RENDER_SERVICE_ID_PRODUCTION }}
         run: |
-          if [ -z "$HOOK" ]; then
-            echo "::error::RENDER_DEPLOY_HOOK_PRODUCTION is not set. Add it in repo Settings > Secrets."
+          if [ -z "$KEY" ] || [ -z "$SID" ]; then
+            echo "::error::Set RENDER_API_KEY and RENDER_SERVICE_ID_PRODUCTION in repo Settings > Secrets."
             exit 1
           fi
-          echo "Triggering Render production deploy..."
-          curl -fsS -X POST "$HOOK"
-          echo "Deploy hook accepted."
+      - name: Deploy to Render (production)
+        uses: johnbeynon/render-deploy-action@v0.0.8
+        with:
+          service-id: ${{ secrets.RENDER_SERVICE_ID_PRODUCTION }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
+          wait-for-success: true

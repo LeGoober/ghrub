@@ -1,22 +1,34 @@
 name: deploy-staging
 
+# Deploys the `staging` branch to the ghrub-staging Render service after CI.
+# Uses your existing RENDER_API_KEY + the staging service id (same pattern as
+# Underground Terminal's render-deploy-action step).
+
 on:
   push:
     branches: [staging]
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   deploy:
+    needs: ci
     runs-on: ubuntu-latest
     environment: staging
     steps:
-      - name: Trigger Render deploy (staging)
+      - name: Guard — secrets present
         env:
-          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_STAGING }}
+          KEY: ${{ secrets.RENDER_API_KEY }}
+          SID: ${{ secrets.RENDER_SERVICE_ID_STAGING }}
         run: |
-          if [ -z "$HOOK" ]; then
-            echo "::error::RENDER_DEPLOY_HOOK_STAGING is not set. Add it in repo Settings > Secrets."
+          if [ -z "$KEY" ] || [ -z "$SID" ]; then
+            echo "::error::Set RENDER_API_KEY and RENDER_SERVICE_ID_STAGING in repo Settings > Secrets."
             exit 1
           fi
-          echo "Triggering Render staging deploy..."
-          curl -fsS -X POST "$HOOK"
-          echo "Deploy hook accepted."
+      - name: Deploy to Render (staging)
+        uses: johnbeynon/render-deploy-action@v0.0.8
+        with:
+          service-id: ${{ secrets.RENDER_SERVICE_ID_STAGING }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
+          wait-for-success: true

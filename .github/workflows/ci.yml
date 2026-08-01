@@ -5,6 +5,7 @@ on:
     branches: [dev, staging, main]
   push:
     branches: [dev]
+  workflow_call: {} # invoked by deploy-staging / deploy-production before they deploy
 
 concurrency:
   group: ci-${{ github.ref }}
