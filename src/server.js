@@ -1,14 +1,17 @@
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { createDatabase } from './db/repo.js';
+import { tripsRouter } from './routes/trips.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Build the Express app. Exported so tests can mount it without binding a port.
- * M0: health check + placeholder home. M1+ mounts routers (see docs/06).
+ * DB access goes exclusively through the repository (docs/05 hard rule).
+ * @param {object} [db] repository; defaults to a throwaway in-memory DB for tests.
  */
-export function createApp() {
+export function createApp(db = createDatabase(':memory:')) {
   const app = express();
 
   app.use(express.urlencoded({ extended: true }));
@@ -20,9 +23,7 @@ export function createApp() {
   // Render health check — must not depend on the DB.
   app.get('/healthz', (_req, res) => res.status(200).json({ ok: true, app: 'ghrub' }));
 
-  app.get('/', (_req, res) => {
-    res.render('home', { title: 'ghrub' });
-  });
+  app.use('/', tripsRouter(db));
 
   return app;
 }
@@ -30,7 +31,9 @@ export function createApp() {
 // Start only when run directly (not when imported by a test).
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 if (isMain) {
-  const app = createApp();
+  // Opens ./data/ghrub.db (or DATABASE_PATH) and migrates on boot if needed.
+  const db = createDatabase();
+  const app = createApp(db);
   const port = process.env.PORT || 3000;
   app.listen(port, () => {
     console.log(`ghrub listening on http://localhost:${port}`);

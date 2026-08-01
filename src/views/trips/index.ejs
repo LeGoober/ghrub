@@ -1,0 +1,44 @@
+<%- include('../partials/head', { title }) %>
+  <header class="topbar">
+    <h1>Trips</h1>
+    <a class="btn ghost" href="/">← Home</a>
+  </header>
+
+  <section class="card">
+    <h2>New trip</h2>
+    <%- include('../partials/trip-form', { stores }) %>
+  </section>
+
+  <% if (error) { %>
+    <div class="error" role="alert"><%= error %></div>
+  <% } %>
+
+  <h2 class="section-title">History</h2>
+  <% if (trips.length) { %>
+    <ul class="trip-list">
+      <% trips.forEach((t) => { %>
+        <li class="card trip-card">
+          <div class="trip-card-body">
+            <a class="big-link" href="/trips/<%= t.id %>"><%= t.name %></a>
+            <p class="muted">
+              <%= t.shop_date || t.start_date || 'no date' %> · <%= t.item_count %> items
+              <% if (t.budget && t.budget.budgetCents != null) { %>
+                · <%= t.budget.state === 'over' ? 'over budget' : t.budget.state === 'near' ? 'near budget' : 'on track' %>
+              <% } %>
+            </p>
+          </div>
+          <form
+            hx-delete="/trips/<%= t.id %>"
+            hx-confirm="Delete this trip and all its items?"
+            hx-target="body"
+            hx-swap="innerHTML"
+          >
+            <button class="btn danger ghost" type="submit">Delete</button>
+          </form>
+        </li>
+      <% }) %>
+    </ul>
+  <% } else { %>
+    <p class="muted">No trips yet — create one above.</p>
+  <% } %>
+<%- include('../partials/foot') %>

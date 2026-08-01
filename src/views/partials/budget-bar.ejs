@@ -1,0 +1,28 @@
+<div
+  id="budget-bar"
+  class="budget-bar <%= budget.state %>"
+  <%- oob ? 'hx-swap-oob="true"' : '' %>
+>
+  <div class="budget-row">
+    <strong class="budget-spent"><%= formatCents(budget.subtotalCents) %></strong>
+    <span class="budget-of">of <%= budget.budgetCents != null ? formatCents(budget.budgetCents) : 'no budget set' %></span>
+    <% if (budget.pct != null) { %>
+      <span class="budget-pct"><%= Math.round(budget.pct * 100) %>%</span>
+    <% } %>
+    <span class="budget-state">
+      <%= budget.state === 'over' ? 'over budget' : budget.state === 'near' ? 'near budget' : budget.state === 'ok' ? 'on track' : '' %>
+    </span>
+  </div>
+  <% if (budget.budgetCents != null) { %>
+    <div class="budget-track">
+      <div class="budget-fill" style="width: <%= Math.min(budget.pct * 100, 100) %>%"></div>
+    </div>
+  <% } %>
+  <% if (budget.byCategory.length) { %>
+    <div class="budget-cats">
+      <% budget.byCategory.forEach((c) => { %>
+        <span class="chip"><%= c.category_label %> <%= formatCents(c.subtotal_cents) %></span>
+      <% }) %>
+    </div>
+  <% } %>
+</div>

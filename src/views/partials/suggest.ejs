@@ -1,0 +1,11 @@
+<% if (items.length) { %>
+  <ul class="suggest">
+    <% items.forEach((it) => { %>
+      <li>
+        <button type="button" class="suggest-btn" data-pick-name="<%= it.name %>">
+          <%= it.name %>
+        </button>
+      </li>
+    <% }) %>
+  </ul>
+<% } %>

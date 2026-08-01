@@ -1,0 +1,50 @@
+<section class="card trip-header" id="trip-header">
+  <form
+    hx-patch="/trips/<%= trip.id %>"
+    hx-target="#trip-header"
+    hx-swap="outerHTML"
+  >
+    <div class="row">
+      <label class="field grow">
+        <span>Name</span>
+        <input name="name" value="<%= trip.name %>" required />
+      </label>
+      <label class="field">
+        <span>Status</span>
+        <select name="status">
+          <% ['planning', 'shopping', 'done'].forEach((s) => { %>
+            <option value="<%= s %>" <%= trip.status === s ? 'selected' : '' %>><%= s %></option>
+          <% }) %>
+        </select>
+      </label>
+      <button class="btn" type="submit">Save</button>
+    </div>
+    <div class="row">
+      <label class="field">
+        <span>Starts</span>
+        <input type="date" name="start_date" value="<%= trip.start_date || '' %>" />
+      </label>
+      <label class="field">
+        <span>Lasts until</span>
+        <input type="date" name="end_date" value="<%= trip.end_date || '' %>" />
+      </label>
+      <label class="field">
+        <span>Shop day</span>
+        <input type="date" name="shop_date" value="<%= trip.shop_date || '' %>" />
+      </label>
+      <label class="field">
+        <span>Budget (R)</span>
+        <input type="number" name="budget" min="0" step="0.01" value="<%= trip.budget_cents != null ? (trip.budget_cents / 100).toFixed(2) : '' %>" />
+      </label>
+      <label class="field">
+        <span>Target store</span>
+        <select name="target_store_id">
+          <option value="">— any —</option>
+          <% stores.forEach((s) => { %>
+            <option value="<%= s.id %>" <%= trip.target_store_id === s.id ? 'selected' : '' %>><%= s.name %></option>
+          <% }) %>
+        </select>
+      </label>
+    </div>
+  </form>
+</section>

@@ -1,0 +1,17 @@
+<% if (!groups.length) { %>
+  <p class="muted empty">Nothing on the list yet — add your first item above.</p>
+<% } %>
+
+<% groups.forEach((g) => { %>
+  <section class="card category-group">
+    <h3 class="group-head">
+      <span><%= g.label %></span>
+      <span class="group-total"><%= formatCents(g.subtotal_cents) %></span>
+    </h3>
+    <ul class="lines">
+      <% g.lines.forEach((line) => { %>
+        <%- include('item-line', { trip, line, formatCents }) %>
+      <% }) %>
+    </ul>
+  </section>
+<% }) %>

@@ -1,0 +1,27 @@
+<%- include('partials/head', { title }) %>
+  <header class="topbar">
+    <h1>ghrub</h1>
+    <a class="btn ghost" href="/trips">All trips</a>
+  </header>
+  <p class="tagline">Your groceries, remembered.</p>
+
+  <% if (active) { %>
+    <section class="card">
+      <h2>Next shop</h2>
+      <a class="big-link" href="/trips/<%= active.id %>"><%= active.name %></a>
+      <p class="muted">
+        <%= active.shop_date || active.start_date || 'no date set' %>
+        · <%= active.item_count %> items
+      </p>
+    </section>
+  <% } else { %>
+    <section class="card">
+      <p class="muted">No trips yet — create your first one below.</p>
+    </section>
+  <% } %>
+
+  <section class="card">
+    <h2>New trip</h2>
+    <%- include('partials/trip-form', { stores }) %>
+  </section>
+<%- include('partials/foot') %>

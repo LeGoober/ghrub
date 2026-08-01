@@ -1,0 +1,63 @@
+<li class="line <%= line.bought ? 'bought' : '' %>">
+  <form
+    class="line-form"
+    hx-patch="/trips/<%= trip.id %>/items/<%= line.id %>"
+    hx-target="#trip-lists"
+    hx-swap="innerHTML"
+  >
+    <label class="check" title="Bought">
+      <input
+        type="checkbox"
+        name="bought"
+        value="1"
+        <%= line.bought ? 'checked' : '' %>
+        onchange="this.form.requestSubmit()"
+      />
+    </label>
+    <span class="name"><%= line.item_name %></span>
+    <input
+      class="qty"
+      type="number"
+      name="qty"
+      min="0"
+      step="0.5"
+      value="<%= line.qty %>"
+      title="Quantity"
+      onchange="this.form.requestSubmit()"
+    />
+    <input
+      class="est"
+      type="number"
+      name="est"
+      min="0"
+      step="0.01"
+      value="<%= line.est_cents != null ? (line.est_cents / 100).toFixed(2) : '' %>"
+      placeholder="est"
+      title="Estimate (R)"
+      onchange="this.form.requestSubmit()"
+    />
+    <input
+      class="actual"
+      type="number"
+      name="actual"
+      min="0"
+      step="0.01"
+      value="<%= line.actual_cents != null ? (line.actual_cents / 100).toFixed(2) : '' %>"
+      placeholder="actual"
+      title="Actual price (R)"
+      onchange="this.form.requestSubmit()"
+    />
+    <span class="price"><%= formatCents(line.actual_cents ?? line.est_cents) %></span>
+    <button
+      class="btn danger ghost"
+      type="button"
+      title="Remove"
+      hx-delete="/trips/<%= trip.id %>/items/<%= line.id %>"
+      hx-confirm="Remove <%= line.item_name %> from the list?"
+      hx-target="#trip-lists"
+      hx-swap="innerHTML"
+    >
+      ✕
+    </button>
+  </form>
+</li>
