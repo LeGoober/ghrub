@@ -67,6 +67,15 @@ DEFINITION OF DONE: the DoD line in docs/03-milestones.md for M1, with CI green
 
 ---
 
+## Gotchas (added after a review pass — read before coding)
+- **`.dockerignore` excludes `docs`.** Uncommenting `COPY docs/seed ./docs/seed`
+  alone makes `docker build` fail (context excludes `docs/`). Also add
+  `!docs/seed` to `.dockerignore` (the repo now ships that fix).
+- **Seed money is whole ZAR, schema is integer cents.** `grocery-history.json`
+  stores `budget: 280`, `est: 20`; the seed must ×100 (`toCents`).
+- **`trip` has no unique key**, so a bare `INSERT ... ON CONFLICT` can't make
+  trips idempotent. Upsert trips by name lookup instead (`upsertTripByName`).
+
 ## After FreeBuff opens the PR
 Rorisang + Claude Code review the commit history against the M1 DoD, then
 promote `dev → staging → main`. For subsequent milestones, reuse this file as a
