@@ -8,6 +8,7 @@ data
 .github
 .env
 .env.*
-docs
 test
+# docs/*.md are excluded by the *.md rule; docs/seed/grocery-history.json (the
+# seed data the image must ship) is a .json so it stays in the build context.
 *.md

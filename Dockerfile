@@ -1,15 +1,12 @@
 # ghrub — multi-stage build, node:20-alpine (small image for Render Docker)
 #
-# M0: no native modules, so this is minimal.
-# M1 NOTE: better-sqlite3 is a native addon. When you add it, the `deps` stage
-# needs build tools on alpine — uncomment the apk line below:
-#     RUN apk add --no-cache python3 make g++
-# (or switch the base to node:20-slim which ships more build tooling).
+# M1: better-sqlite3 is a native addon, so the deps stage installs alpine build
+# tools (python3 make g++) before `npm ci` compiles it.
 
 # ---- deps ----
 FROM node:20-alpine AS deps
 WORKDIR /app
-# RUN apk add --no-cache python3 make g++   # <- uncomment in M1 for better-sqlite3
+RUN apk add --no-cache python3 make g++   # M1: build tools for the better-sqlite3 native addon
 COPY package*.json ./
 RUN npm ci --omit=dev
 
@@ -22,7 +19,7 @@ COPY package*.json ./
 COPY src ./src
 COPY public ./public
 COPY scripts ./scripts
-# COPY docs/seed ./docs/seed        # <- uncomment in M1 so `npm run seed` has data
+COPY docs/seed/grocery-history.json ./docs/seed/grocery-history.json
 
 # Render provides PORT; default 3000 for local docker run.
 ENV PORT=3000
