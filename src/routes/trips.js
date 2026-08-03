@@ -78,6 +78,9 @@ export function tripsRouter(db) {
     const trip = db.getTrip(tripId);
     const budget = db.budgetForTrip(tripId);
     const groups = groupItemsByCategory(db.getTripItems(tripId));
+    // Tells the lazily-loaded store comparison to re-price itself (M3). Cheaper
+    // than shipping the whole comparison in every mutation response.
+    res.set('HX-Trigger', 'ghrub:list-changed');
     res.render('partials/lists-response', {
       trip,
       budget,

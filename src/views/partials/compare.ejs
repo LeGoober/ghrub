@@ -1,0 +1,98 @@
+<section class="card compare" id="compare">
+  <h2>Where to shop</h2>
+
+  <% if (!comparison.hasPrices) { %>
+    <p class="muted small">
+      No prices on file for this list yet.
+      <a href="/stores/prices">Record a few</a> and ghrub will work out the cheapest store.
+    </p>
+  <% } else { %>
+
+    <% if (comparison.cheapest && !comparison.cheapest.tied) { %>
+      <p class="verdict <%= comparison.thinComparison ? 'is-thin' : '' %>">
+        <strong><%= comparison.cheapest.storeName %></strong> is cheapest
+        <% if (comparison.cheapest.savingVsNextCents) { %>
+          by <strong><%= formatCents(comparison.cheapest.savingVsNextCents) %></strong>
+        <% } %>
+      </p>
+    <% } else if (comparison.cheapest) { %>
+      <p class="verdict">It is a tie on the comparable lines.</p>
+    <% } %>
+
+    <p class="muted small basis">
+      Compared on the <%= comparison.comparableLineCount %> of
+      <%= comparison.totalLineCount %> line<%= comparison.totalLineCount === 1 ? '' : 's' %>
+      priced at every store<% if (comparison.thinComparison) { %> — too few to trust yet, add more prices<% } %>.
+    </p>
+
+    <div class="table-scroll">
+      <table class="data-table compare-table">
+        <thead>
+          <tr>
+            <th scope="col">Store</th>
+            <th scope="col" class="num">Comparable</th>
+            <th scope="col" class="num">All it prices</th>
+            <th scope="col" class="num">Covers</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% comparison.stores.forEach((store) => { %>
+            <tr class="<%= store.isCheapest ? 'is-cheapest' : '' %>">
+              <th scope="row">
+                <%= store.storeName %>
+                <% if (store.isCheapest) { %><span class="badge-cheapest">cheapest</span><% } %>
+              </th>
+              <td class="num"><%= formatCents(store.comparableCents) %></td>
+              <td class="num"><%= formatCents(store.subtotalCents) %></td>
+              <td class="num">
+                <%= store.pricedCount %>/<%= store.pricedCount + store.unpricedCount %>
+                <% if (store.unpricedCount) { %>
+                  <span class="unpriced-flag" title="No price on file: <%= store.unpricedNames.join(', ') %>">
+                    <%= store.unpricedCount %> unpriced
+                  </span>
+                <% } %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="muted small">
+      "Comparable" is the only like-for-like number — a store that knows fewer
+      prices would otherwise look cheaper just for knowing less. Unpriced lines
+      are flagged, never counted as free.
+    </p>
+
+    <% if (comparison.splitShop && comparison.splitShop.stops.length > 1) { %>
+      <div class="split-shop">
+        <h3>Cheapest per line</h3>
+        <p class="muted small">
+          Buying each line wherever it is cheapest comes to
+          <strong><%= formatCents(comparison.splitShop.totalCents) %></strong>
+          across <%= comparison.splitShop.stops.length %> stops<% if (comparison.splitShop.savingCents !== null) { %>
+            —
+            <% if (comparison.splitShop.worthIt) { %>
+              <strong><%= formatCents(comparison.splitShop.savingCents) %></strong> less than
+              <%= comparison.splitShop.bestSingleStoreName %> alone
+            <% } else { %>
+              no better than <%= comparison.splitShop.bestSingleStoreName %> alone, so stay in one shop
+            <% } %>
+          <% } %>.
+        </p>
+        <% if (comparison.splitShop.worthIt) { %>
+          <ul class="stops">
+            <% comparison.splitShop.stops.forEach((stop) => { %>
+              <li>
+                <strong><%= stop.storeName %></strong>
+                <span class="muted"><%= formatCents(stop.subtotalCents) %></span>
+                <span class="stop-items"><%= stop.items.map((i) => i.itemName).join(', ') %></span>
+              </li>
+            <% }) %>
+          </ul>
+        <% } %>
+      </div>
+    <% } %>
+
+  <% } %>
+</section>
