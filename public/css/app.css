@@ -23,6 +23,92 @@
   --chart-over: #c94b3d;
 }
 
+/* ---- dark mode (M5) ----
+   Stepped deliberately against a dark surface rather than inverting the light
+   palette: --chart-mark is re-picked (a mark tuned for a near-white card loses
+   its contrast on #171613), and the ink/line ramp is rebuilt, not flipped. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12110f;
+    --surface: #1c1b18;
+    --ink: #f0ede4;
+    --muted: #a8a294;
+    --line: #33312b;
+    --accent: #4aa87a;
+    --accent-ink: #10261c;
+    --ok: #4aa87a;
+    --near: #e0aa48;
+    --over: #e0705c;
+    --danger: #e0705c;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+
+    --chart-mark: #3fa877;
+    --chart-over: #e0705c;
+  }
+
+  .cadence-hint {
+    background: #1b2b23;
+    border-color: #2c4437;
+    color: #bfe0cf;
+  }
+
+  .logged {
+    background: #1b2b23;
+    border-color: #2c4437;
+  }
+
+  .compare-table .is-cheapest {
+    background: #1b2b23;
+  }
+
+  .low-banner,
+  .unpriced-flag {
+    background: #2b2416;
+    border-color: #4a3d20;
+    color: #e5c98a;
+  }
+
+  .error,
+  .over-flag {
+    background: #2e1d1a;
+    border-color: #573029;
+  }
+
+  .chips .chip-add {
+    border-color: #2c4437;
+  }
+
+  .chips .chip-add:hover,
+  .suggest-btn:hover {
+    background: #24302a;
+  }
+
+  .stops li,
+  .chip {
+    background: #24231e;
+  }
+
+  .btn.danger.ghost {
+    border-color: #573029;
+  }
+
+  .budget-track {
+    background: #2a2823;
+  }
+
+  .suggest-btn:hover,
+  .plan-cell select,
+  .ingredient-editor textarea {
+    background: #24231e;
+  }
+
+  .field input,
+  .field select,
+  .ingredient-editor textarea {
+    color-scheme: dark;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -145,7 +231,7 @@ a {
   border: 1px solid var(--line);
   border-radius: 10px;
   font-size: 1rem;
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
   width: 100%;
 }
@@ -398,7 +484,7 @@ a {
   list-style: none;
   margin: 6px 0 0;
   padding: 6px;
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 10px;
   box-shadow: 0 6px 16px rgba(28, 27, 24, 0.12);
@@ -961,4 +1047,122 @@ a {
   color: var(--over);
   font-size: 0.72rem;
   font-weight: 600;
+}
+
+/* ---- accessibility + polish (M5) ---- */
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 10;
+  padding: 10px 16px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-radius: 0 0 10px 0;
+  font-weight: 600;
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
+/* One visible focus treatment everywhere. The default outline disappears
+   against the dark surface, so this is drawn explicitly for both themes. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.explain {
+  padding: 14px 16px;
+}
+
+.explain-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.95rem;
+}
+
+.explain-text {
+  margin: 8px 0 0;
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.explain-model {
+  margin-top: 8px;
+}
+
+.explain-trigger {
+  width: 100%;
+}
+
+/* htmx toggles .htmx-request on the indicator during a flight. */
+.spinner {
+  display: none;
+  width: 12px;
+  height: 12px;
+  margin-left: 8px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: -1px;
+  animation: spin 0.7s linear infinite;
+}
+
+.spinner.htmx-request {
+  display: inline-block;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.error-page {
+  text-align: center;
+  padding: 32px 20px;
+}
+
+.error-status {
+  margin: 0;
+  font-size: 2.5rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.error-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+/* Respect the OS setting — no spinners, no transforms, no motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .btn:active,
+  .chips .chip-add:active {
+    transform: none;
+  }
 }

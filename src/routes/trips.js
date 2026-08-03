@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { toCents, formatCents } from '../lib/money.js';
 import { regulars, newThisList, oftenForgotten, cadence } from '../lib/insights.js';
 import { applyBoughtToInventory, lowStockSuggestions } from '../lib/kitchen.js';
+import { compareBasket } from '../lib/compare.js';
+import { llmEnabled, buildFactSheet, requestExplanation } from '../lib/explain.js';
 
 function blankToNull(value) {
   if (value === null || value === undefined) return null;
@@ -156,6 +158,7 @@ export function tripsRouter(db) {
       groups,
       buckets: buildBuckets(trip.id),
       cadence: cadence(db),
+      llm: llmEnabled(),
       stores: db.listStores(),
       categories: db.listCategories(),
       formatCents,
@@ -273,6 +276,45 @@ export function tripsRouter(db) {
     const q = blankToNull(req.query.q);
     const items = q ? db.searchItems(q, 8) : [];
     res.render('partials/suggest', { items });
+  });
+
+  // GET /trips/:id/explain — optional narrative summary (M5, docs/06).
+  // 404s unless ENABLE_LLM=true and a key is set, so the feature simply does
+  // not exist by default rather than failing loudly.
+  router.get('/trips/:id/explain', async (req, res) => {
+    const trip = db.getTrip(Number(req.params.id));
+    if (!trip) {
+      res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
+      return;
+    }
+    if (!llmEnabled()) {
+      res.status(404).render('partials/error', {
+        status: 404,
+        message: 'Explanations are switched off (ENABLE_LLM).',
+      });
+      return;
+    }
+
+    const factSheet = buildFactSheet({
+      trip,
+      budget: db.budgetForTrip(trip.id),
+      buckets: buildBuckets(trip.id),
+      cadence: cadence(db),
+      comparison: compareBasket(db, trip.id),
+      formatCents,
+    });
+
+    try {
+      const { text, model } = await requestExplanation(factSheet);
+      res.render('partials/explain', { text, model, error: null, trip });
+    } catch (err) {
+      res.status(502).render('partials/explain', {
+        text: null,
+        model: null,
+        error: err.message,
+        trip,
+      });
+    }
   });
 
   // GET /trips/:id/insights/{regulars,new,forgotten} — one bucket as a partial
