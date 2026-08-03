@@ -22,7 +22,8 @@ The loop (from `docs/05-agent-runbook.md`):
 |-----------|-----------|--------|
 | [M1 — data layer + running list](M1-checklist.md) | M1 `[MVP]` | ✔ implemented, CI-green locally (see file) |
 | [CI/CD backtest — M0 & M1](cicd-backtest.md) | audit | ✔ findings + remediation; B4 open (needs Render secrets) |
-| `_milestone-template.md` | M2+ | template |
+| [M2 — habit intelligence](M2-checklist.md) | M2 `[MVP]` | ✔ implemented, 52 tests green (see file) |
+| `_milestone-template.md` | M3+ | template |
 
 ## Evidence conventions
 
