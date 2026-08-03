@@ -1,0 +1,141 @@
+<%- include('partials/head', { title }) %>
+  <header class="topbar">
+    <h1>Spend history</h1>
+    <a class="btn ghost" href="/">← Home</a>
+  </header>
+
+  <% if (!history.tripCount) { %>
+    <section class="card">
+      <p class="muted empty">No trips yet — once you have shopped a few times, your spend history shows up here.</p>
+    </section>
+  <% } else { %>
+
+  <section class="card hero-card">
+    <p class="hero-label">Average per shop</p>
+    <p class="hero-figure"><%= formatCents(history.avgPerTripCents) %></p>
+    <div class="stat-row">
+      <div class="stat">
+        <span class="stat-label">Total spent</span>
+        <span class="stat-value"><%= formatCents(history.totalCents) %></span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Trips</span>
+        <span class="stat-value"><%= history.tripCount %></span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Over budget</span>
+        <span class="stat-value"><%= history.overBudgetCount %> of <%= history.budgetedCount %></span>
+      </div>
+      <% if (cadence.medianGapDays) { %>
+        <div class="stat">
+          <span class="stat-label">You shop every</span>
+          <span class="stat-value"><%= cadence.medianGapDays %> days</span>
+        </div>
+      <% } %>
+    </div>
+  </section>
+
+  <section class="card chart-card">
+    <h2>Spend per shop</h2>
+    <p class="muted small">Each column is one trip, oldest first. The split shows where a trip broke its budget.</p>
+
+    <ul class="chart-legend">
+      <li><span class="key key-within" aria-hidden="true"></span> Within budget</li>
+      <li><span class="key key-over" aria-hidden="true"></span> Over budget</li>
+      <li><span class="key key-tick" aria-hidden="true"></span> Budget</li>
+    </ul>
+
+    <svg
+      class="chart"
+      viewBox="0 0 <%= spendChart.width %> <%= spendChart.height %>"
+      role="img"
+      aria-label="Spend per shopping trip, oldest first. Full values are in the table below."
+    >
+      <% spendChart.yTicks.forEach((tick) => { %>
+        <line class="chart-grid" x1="<%= spendChart.plot.x %>" y1="<%= tick.y %>"
+              x2="<%= spendChart.plot.x + spendChart.plot.w %>" y2="<%= tick.y %>" />
+        <text class="chart-tick" x="<%= spendChart.plot.x - 8 %>" y="<%= tick.y + 3 %>"
+              text-anchor="end"><%= tick.label %></text>
+      <% }) %>
+
+      <% spendChart.bars.forEach((bar) => { %>
+        <g>
+          <title><%= bar.title %></title>
+          <% bar.segments.forEach((seg) => { %>
+            <path class="chart-bar chart-bar-<%= seg.kind %>" d="<%= seg.path %>" />
+          <% }) %>
+          <% if (bar.budgetY !== null) { %>
+            <line class="chart-budget" x1="<%= bar.budgetTickX1 %>" y1="<%= bar.budgetY %>"
+                  x2="<%= bar.budgetTickX2 %>" y2="<%= bar.budgetY %>" />
+          <% } %>
+          <% if (bar.label) { %>
+            <text class="chart-label" x="<%= bar.centerX %>" y="<%= bar.topY - 6 %>"
+                  text-anchor="middle"><%= bar.label %></text>
+          <% } %>
+          <text class="chart-axis" x="<%= bar.centerX %>" y="<%= spendChart.baseline + 16 %>"
+                text-anchor="middle"><%= bar.axisLabel %></text>
+        </g>
+      <% }) %>
+    </svg>
+  </section>
+
+  <section class="card chart-card">
+    <h2>Average spend by category</h2>
+    <p class="muted small">What a typical shop costs you, per aisle.</p>
+
+    <svg
+      class="chart"
+      viewBox="0 0 <%= categoryChart.width %> <%= categoryChart.height %>"
+      role="img"
+      aria-label="Average spend per trip by category, highest first."
+    >
+      <% categoryChart.rows.forEach((row) => { %>
+        <g>
+          <title><%= row.title %></title>
+          <text class="chart-axis chart-row-label" x="<%= categoryChart.labelX %>"
+                y="<%= row.textY %>" text-anchor="end" dominant-baseline="middle"><%= row.label %></text>
+          <rect class="chart-bar chart-bar-within" x="<%= row.x %>" y="<%= row.y %>"
+                width="<%= row.w %>" height="<%= row.h %>" rx="4" />
+          <text class="chart-value" x="<%= row.valueX %>" y="<%= row.textY %>"
+                dominant-baseline="middle"><%= row.value %></text>
+        </g>
+      <% }) %>
+    </svg>
+  </section>
+
+  <section class="card">
+    <h2>Every trip</h2>
+    <p class="muted small">The same numbers as the charts, in full.</p>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">Trip</th>
+            <th scope="col">Date</th>
+            <th scope="col" class="num">Items</th>
+            <th scope="col" class="num">Budget</th>
+            <th scope="col" class="num">Spent</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% history.trips.slice().reverse().forEach((trip) => { %>
+            <tr>
+              <th scope="row"><a href="/trips/<%= trip.id %>"><%= trip.name %></a></th>
+              <td><%= String(trip.effective_date || '').slice(0, 10) %></td>
+              <td class="num"><%= trip.bought_count %>/<%= trip.line_count %></td>
+              <td class="num"><%= trip.budget_cents == null ? '—' : formatCents(trip.budget_cents) %></td>
+              <td class="num">
+                <%= formatCents(trip.total_cents) %>
+                <% if (trip.budget_cents != null && trip.total_cents > trip.budget_cents) { %>
+                  <span class="over-flag">over</span>
+                <% } %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <% } %>
+<%- include('partials/foot') %>

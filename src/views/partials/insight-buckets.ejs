@@ -1,0 +1,17 @@
+<div
+  id="insight-buckets"
+  class="insight-buckets"
+  <%- oob ? 'hx-swap-oob="true"' : '' %>
+>
+  <% if (cadence.medianGapDays) { %>
+    <p class="cadence-hint">
+      You shop about every <strong><%= cadence.medianGapDays %> days</strong>.
+      Last one was <%= cadence.lastShopDate %> — next is due around
+      <strong><%= cadence.suggestedNextShopDate %></strong>.
+    </p>
+  <% } %>
+
+  <% buckets.forEach((bucket) => { %>
+    <%- include('insight-bucket', { trip, bucket }) %>
+  <% }) %>
+</div>
