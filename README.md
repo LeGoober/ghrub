@@ -32,9 +32,24 @@ CI/CD driven by Rorisang + Claude Code. Milestones + Definitions of Done in
 [docs/03-milestones.md](docs/03-milestones.md).
 
 ## Status
-- [x] M0 — scaffold (this commit): health check, tests, Docker, CI, Render blueprint
-- [ ] M1 — data layer + running list
-- [ ] M2 — habit intelligence
-- [ ] M3 — store price comparison
-- [ ] M4 — recipes + inventory
-- [ ] M5 — polish + optional LLM
+- [x] M0 — scaffold: health check, tests, Docker, CI, Render blueprint
+- [x] M1 — data layer + running list
+- [x] M2 — habit intelligence (regulars / new / forgotten, `/history` charts)
+- [x] M3 — store price comparison — **`v0.1.0`, end of MVP**
+- [x] M4 — recipes + inventory (eat → deplete → restock)
+- [x] M5 — polish + optional LLM — **`v0.2.0`**
+
+**Not deployed yet.** Both deploy workflows fail at their secrets guard by
+design until the Render services are wired up — see
+[`reports/cicd-backtest.md`](reports/cicd-backtest.md) finding **B4** for the
+three `gh secret set` commands that close it.
+
+## Screens
+`/` dashboard · `/trips` history · `/trips/:id` the workspace (list, budget bar,
+habit buckets, store comparison, meal plan) · `/history` spend analytics ·
+`/stores/prices` price book · `/recipes` · `/inventory`
+
+## The optional LLM layer
+"Explain this shop" is **off by default**. It needs `ENABLE_LLM=true` *and*
+`ANTHROPIC_API_KEY`; without both, the route 404s and nothing else changes.
+It is one `fetch` call to the Messages API — no SDK dependency.

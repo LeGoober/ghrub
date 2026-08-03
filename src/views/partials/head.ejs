@@ -2,10 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title><%= title %></title>
+    <meta name="description" content="Your groceries, remembered." />
+    <meta name="theme-color" content="#1f6f4a" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/static/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/static/icon.svg" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="ghrub" />
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <link rel="stylesheet" href="/static/css/app.css" />
   </head>
   <body>
-    <main class="wrap">
+    <a class="skip-link" href="#main">Skip to the list</a>
+    <main class="wrap" id="main">

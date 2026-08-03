@@ -13,10 +13,28 @@ export default [
       globals: {
         process: 'readonly',
         console: 'readonly',
+        // Web APIs that are built into Node 20 — used by src/lib/explain.js so
+        // the optional LLM call needs no HTTP dependency (M5).
+        fetch: 'readonly',
+        AbortSignal: 'readonly',
+        URL: 'readonly',
       },
     },
     rules: {
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
+  {
+    // The service worker runs in its own global scope, not Node's.
+    files: ['public/sw.js'],
+    languageOptions: {
+      globals: {
+        self: 'readonly',
+        caches: 'readonly',
+        fetch: 'readonly',
+        Response: 'readonly',
+        URL: 'readonly',
+      },
     },
   },
   {

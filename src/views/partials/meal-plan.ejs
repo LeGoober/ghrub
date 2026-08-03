@@ -1,0 +1,57 @@
+<section class="card meal-plan" id="meal-plan">
+  <h2>Meal plan</h2>
+
+  <% if (!grid.days.length) { %>
+    <p class="muted small">
+      Set this trip's start and "lasts until" dates above and a planning grid appears here.
+    </p>
+  <% } else { %>
+    <p class="muted small">
+      One cell per meal across the trip period. Planned recipes are a reminder —
+      stock only moves when you log a meal as eaten on
+      <a href="/recipes">Recipes</a>.
+    </p>
+    <div class="table-scroll">
+      <table class="data-table plan-grid">
+        <thead>
+          <tr>
+            <th scope="col">Day</th>
+            <% grid.slots.forEach((slot) => { %>
+              <th scope="col"><%= slot === 'lunch2' ? 'lunch 2' : slot %></th>
+            <% }) %>
+          </tr>
+        </thead>
+        <tbody>
+          <% grid.days.forEach((day) => { %>
+            <tr>
+              <th scope="row" class="plan-day"><%= day.label %></th>
+              <% grid.slots.forEach((slot) => { %>
+                <% const cell = grid.cells.get(day.iso + '|' + slot); %>
+                <td class="plan-cell">
+                  <form
+                    hx-post="/trips/<%= trip.id %>/plan"
+                    hx-target="#meal-plan"
+                    hx-swap="outerHTML"
+                  >
+                    <input type="hidden" name="day" value="<%= day.iso %>" />
+                    <input type="hidden" name="slot" value="<%= slot %>" />
+                    <select
+                      name="recipe_id"
+                      aria-label="<%= day.label %> <%= slot %>"
+                      onchange="this.form.requestSubmit()"
+                    >
+                      <option value="">—</option>
+                      <% recipes.forEach((r) => { %>
+                        <option value="<%= r.id %>" <%= cell && cell.recipe_id === r.id ? 'selected' : '' %>><%= r.name %></option>
+                      <% }) %>
+                    </select>
+                  </form>
+                </td>
+              <% }) %>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</section>

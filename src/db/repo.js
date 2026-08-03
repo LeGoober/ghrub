@@ -490,6 +490,172 @@ export function createDatabase(dbPath = process.env.DATABASE_PATH || DEFAULT_DB_
          ON CONFLICT(recipe_id, item_id) DO UPDATE SET qty = excluded.qty`
       ).run(recipeId, itemId, qty);
     },
+
+    // ---- recipes, inventory and the meal loop (M4) ----
+
+    listRecipes() {
+      return db
+        .prepare(
+          `SELECT r.*,
+                  (SELECT COUNT(*) FROM recipe_ingredient WHERE recipe_id = r.id) AS ingredient_count
+           FROM recipe r ORDER BY r.name`
+        )
+        .all();
+    },
+
+    getRecipe(id) {
+      const recipe = db.prepare('SELECT * FROM recipe WHERE id = ?').get(id);
+      if (!recipe) return undefined;
+      return { ...recipe, ingredients: this.getRecipeIngredients(id) };
+    },
+
+    getRecipeIngredients(recipeId) {
+      return db
+        .prepare(
+          `SELECT ri.item_id, ri.qty, i.name AS item_name, i.category_key
+           FROM recipe_ingredient ri
+           JOIN item i ON i.id = ri.item_id
+           WHERE ri.recipe_id = ?
+           ORDER BY i.name`
+        )
+        .all(recipeId);
+    },
+
+    /** Replace a recipe's ingredient list wholesale (the editor posts the set). */
+    setRecipeIngredients(recipeId, ingredients) {
+      const replace = db.transaction(() => {
+        db.prepare('DELETE FROM recipe_ingredient WHERE recipe_id = ?').run(recipeId);
+        for (const { itemId, qty } of ingredients) {
+          this.upsertRecipeIngredient(recipeId, itemId, qty);
+        }
+      });
+      replace();
+      return this.getRecipe(recipeId);
+    },
+
+    deleteRecipe(id) {
+      db.prepare('DELETE FROM recipe WHERE id = ?').run(id);
+    },
+
+    // -- inventory --
+    // Only items with an inventory row are "tracked". Everything else in the
+    // catalog is simply not being counted, which is different from being at
+    // zero — otherwise all 100 seeded items would report as running low.
+
+    listInventory() {
+      return db
+        .prepare(
+          `SELECT inv.*, i.name AS item_name, i.category_key, c.label AS category_label
+           FROM inventory inv
+           JOIN item i ON i.id = inv.item_id
+           JOIN category c ON c.key = i.category_key
+           ORDER BY i.name`
+        )
+        .all();
+    },
+
+    getInventory(itemId) {
+      return db.prepare('SELECT * FROM inventory WHERE item_id = ?').get(itemId);
+    },
+
+    setInventory(itemId, { qtyOnHand = 0, unit = null, lowThreshold = 1 } = {}) {
+      db.prepare(
+        `INSERT INTO inventory (item_id, qty_on_hand, unit, low_threshold, updated_at)
+         VALUES (@item_id, @qty, @unit, @low, datetime('now'))
+         ON CONFLICT(item_id) DO UPDATE SET
+           qty_on_hand   = excluded.qty_on_hand,
+           unit          = COALESCE(excluded.unit, inventory.unit),
+           low_threshold = excluded.low_threshold,
+           updated_at    = excluded.updated_at`
+      ).run({ item_id: itemId, qty: qtyOnHand, unit, low: lowThreshold });
+      return this.getInventory(itemId);
+    },
+
+    /**
+     * Move stock by a delta, creating the row if the item was untracked.
+     * Never goes below zero — you cannot have -2 eggs.
+     */
+    adjustInventory(itemId, delta) {
+      db.prepare(
+        `INSERT INTO inventory (item_id, qty_on_hand, updated_at)
+         VALUES (@item_id, MAX(0, @delta), datetime('now'))
+         ON CONFLICT(item_id) DO UPDATE SET
+           qty_on_hand = MAX(0, inventory.qty_on_hand + @delta),
+           updated_at  = datetime('now')`
+      ).run({ item_id: itemId, delta });
+      return this.getInventory(itemId);
+    },
+
+    /** Tracked items at or below their low-water mark. */
+    lowStockItems() {
+      return db
+        .prepare(
+          `SELECT inv.*, i.name AS item_name, i.category_key, c.label AS category_label
+           FROM inventory inv
+           JOIN item i ON i.id = inv.item_id
+           JOIN category c ON c.key = i.category_key
+           WHERE inv.qty_on_hand <= inv.low_threshold
+           ORDER BY (inv.qty_on_hand - inv.low_threshold), i.name`
+        )
+        .all();
+    },
+
+    // -- meal log --
+
+    logMeal({ recipeId = null, freeText = null, eatenDate = null }) {
+      const info = db
+        .prepare(
+          `INSERT INTO meal_log (eaten_date, recipe_id, free_text)
+           VALUES (COALESCE(@eaten_date, date('now')), @recipe_id, @free_text)`
+        )
+        .run({ eaten_date: eatenDate, recipe_id: recipeId, free_text: freeText });
+      return db.prepare('SELECT * FROM meal_log WHERE id = ?').get(info.lastInsertRowid);
+    },
+
+    listMealLog(limit = 20) {
+      return db
+        .prepare(
+          `SELECT ml.*, r.name AS recipe_name
+           FROM meal_log ml
+           LEFT JOIN recipe r ON r.id = ml.recipe_id
+           ORDER BY ml.eaten_date DESC, ml.id DESC
+           LIMIT ?`
+        )
+        .all(limit);
+    },
+
+    // -- meal plan (the trip period grid) --
+
+    getMealPlan(tripId) {
+      return db
+        .prepare(
+          `SELECT mp.*, r.name AS recipe_name
+           FROM meal_plan mp
+           LEFT JOIN recipe r ON r.id = mp.recipe_id
+           WHERE mp.trip_id = ?`
+        )
+        .all(tripId);
+    },
+
+    /**
+     * Set one cell of the grid. Clearing both fields removes the cell rather
+     * than leaving an empty row behind.
+     */
+    setMealPlanCell(tripId, day, slot, { recipeId = null, freeText = null } = {}) {
+      db.prepare('DELETE FROM meal_plan WHERE trip_id = ? AND day = ? AND slot = ?').run(
+        tripId,
+        day,
+        slot
+      );
+      if (recipeId == null && !freeText) return null;
+      const info = db
+        .prepare(
+          `INSERT INTO meal_plan (trip_id, day, slot, recipe_id, free_text)
+           VALUES (?, ?, ?, ?, ?)`
+        )
+        .run(tripId, day, slot, recipeId, freeText);
+      return db.prepare('SELECT * FROM meal_plan WHERE id = ?').get(info.lastInsertRowid);
+    },
   };
 }
 

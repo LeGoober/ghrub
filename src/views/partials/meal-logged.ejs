@@ -1,0 +1,50 @@
+<div id="meal-log">
+  <% if (result.recipe && result.decremented.length) { %>
+    <div class="logged" role="status">
+      <p>
+        Logged <strong><%= result.recipe.name %></strong>.
+        Drew down <%= result.decremented.length %>
+        ingredient<%= result.decremented.length === 1 ? '' : 's' %>:
+      </p>
+      <ul class="drawdown">
+        <% result.decremented.forEach((d) => { %>
+          <li>
+            <%= d.itemName %>
+            <span class="muted">−<%= d.qty %> → <%= d.remaining %> left</span>
+          </li>
+        <% }) %>
+      </ul>
+    </div>
+  <% } else if (result.recipe) { %>
+    <div class="logged" role="status">
+      <p>
+        Logged <strong><%= result.recipe.name %></strong>. It has no ingredients yet,
+        so nothing moved — add some and the next one will draw stock down.
+      </p>
+    </div>
+  <% } else { %>
+    <div class="logged" role="status">
+      <p>
+        Logged <strong><%= result.log.free_text %></strong>. ghrub does not know what
+        that was made of, so no stock moved.
+      </p>
+    </div>
+  <% } %>
+
+  <% if (lowStock.length) { %>
+    <p class="low-banner">
+      Now running low: <%= lowStock.map((r) => r.item_name).join(', ') %>.
+      These appear as suggestions on your next trip.
+    </p>
+  <% } %>
+
+  <h3 class="section-title">Recently eaten</h3>
+  <ul class="meal-history">
+    <% recentMeals.forEach((meal) => { %>
+      <li>
+        <span class="meal-date"><%= meal.eaten_date %></span>
+        <span><%= meal.recipe_name || meal.free_text %></span>
+      </li>
+    <% }) %>
+  </ul>
+</div>

@@ -1,0 +1,16 @@
+<%- include('partials/head', { title }) %>
+  <header class="topbar">
+    <h1>ghrub</h1>
+    <a class="btn ghost" href="/">← Home</a>
+  </header>
+
+  <section class="card error-page">
+    <p class="error-status"><%= status %></p>
+    <h2><%= title %></h2>
+    <p class="muted"><%= message %></p>
+    <nav class="error-links">
+      <a class="btn" href="/">Back to the dashboard</a>
+      <a class="btn ghost" href="/trips">All trips</a>
+    </nav>
+  </section>
+<%- include('partials/foot') %>

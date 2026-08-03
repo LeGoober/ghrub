@@ -49,6 +49,22 @@
     </form>
   </section>
 
+  <% if (llm) { %>
+    <%# Only rendered when ENABLE_LLM=true — the app is complete without it. %>
+    <div id="explain-panel">
+      <button
+        class="btn ghost explain-trigger"
+        hx-get="/trips/<%= trip.id %>/explain"
+        hx-target="#explain-panel"
+        hx-swap="outerHTML"
+        hx-indicator="#explain-spinner"
+      >
+        Explain this shop
+        <span id="explain-spinner" class="spinner" aria-hidden="true"></span>
+      </button>
+    </div>
+  <% } %>
+
   <%- include('../partials/insight-buckets', { trip, buckets, cadence, oob: false }) %>
 
   <div id="trip-lists">
@@ -63,6 +79,10 @@
     hx-trigger="load, ghrub:list-changed from:body"
     hx-swap="innerHTML"
   ></div>
+
+  <!-- The meal-plan grid is heavier than the rest of the page and only matters
+       once the trip has dates, so it loads on demand too (M4). -->
+  <div hx-get="/trips/<%= trip.id %>/plan" hx-trigger="load" hx-swap="innerHTML"></div>
 
   <script>
     // Pick a type-ahead suggestion: fill the item input, clear the dropdown.
