@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { toCents, formatCents } from '../lib/money.js';
+import { regulars, newThisList, oftenForgotten, cadence } from '../lib/insights.js';
 
 function blankToNull(value) {
   if (value === null || value === undefined) return null;
@@ -29,6 +30,37 @@ function groupItemsByCategory(items) {
 export function tripsRouter(db) {
   const router = Router();
 
+  /**
+   * The three habit buckets shown above the list (docs/03 M2). Defined once and
+   * shared by the workspace page, the post-mutation partial and the per-bucket
+   * GET routes, so a bucket's title can never drift between them.
+   */
+  const BUCKET_DEFS = [
+    {
+      key: 'regulars',
+      title: 'Your regulars',
+      blurb: 'On at least half of your past lists.',
+      addable: true,
+      rows: (tripId) => regulars(db, tripId),
+    },
+    {
+      key: 'new',
+      title: 'New this list',
+      blurb: 'Never on one of your lists before.',
+      addable: false,
+      rows: (tripId) => newThisList(db, tripId),
+    },
+    {
+      key: 'forgotten',
+      title: 'Often forgotten',
+      blurb: 'You list these a lot — but not this time.',
+      addable: true,
+      rows: (tripId) => oftenForgotten(db, tripId),
+    },
+  ];
+
+  const buildBuckets = (tripId) => BUCKET_DEFS.map((def) => ({ ...def, rows: def.rows(tripId) }));
+
   const renderTripsList = (res, error) => {
     const trips = db.listTrips().map((t) => ({ ...t, budget: db.budgetForTrip(t.id) }));
     res.status(error ? 400 : 200).render('trips/index', {
@@ -39,11 +71,21 @@ export function tripsRouter(db) {
     });
   };
 
+  // Every list mutation also refreshes the habit buckets out-of-band: adding a
+  // line changes what counts as new, forgotten or already-on-the-list, so a
+  // stale bucket would keep offering an item you just added.
   const renderListsResponse = (res, tripId) => {
     const trip = db.getTrip(tripId);
     const budget = db.budgetForTrip(tripId);
     const groups = groupItemsByCategory(db.getTripItems(tripId));
-    res.render('partials/lists-response', { trip, budget, groups, formatCents });
+    res.render('partials/lists-response', {
+      trip,
+      budget,
+      groups,
+      buckets: buildBuckets(tripId),
+      cadence: cadence(db),
+      formatCents,
+    });
   };
 
   const renderHeaderResponse = (res, trip) => {
@@ -101,6 +143,8 @@ export function tripsRouter(db) {
       trip,
       budget,
       groups,
+      buckets: buildBuckets(trip.id),
+      cadence: cadence(db),
       stores: db.listStores(),
       categories: db.listCategories(),
       formatCents,
@@ -200,6 +244,35 @@ export function tripsRouter(db) {
     const q = blankToNull(req.query.q);
     const items = q ? db.searchItems(q, 8) : [];
     res.render('partials/suggest', { items });
+  });
+
+  // GET /trips/:id/insights/{regulars,new,forgotten} — one bucket as a partial
+  for (const def of BUCKET_DEFS) {
+    router.get(`/trips/:id/insights/${def.key}`, (req, res) => {
+      const trip = db.getTrip(Number(req.params.id));
+      if (!trip) {
+        res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
+        return;
+      }
+      res.render('partials/insight-bucket', {
+        trip,
+        bucket: { ...def, rows: def.rows(trip.id) },
+      });
+    });
+  }
+
+  // POST /trips/:id/insights/add-regulars — bulk add every regular not yet listed
+  router.post('/trips/:id/insights/add-regulars', (req, res) => {
+    const trip = db.getTrip(Number(req.params.id));
+    if (!trip) {
+      res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
+      return;
+    }
+    for (const row of regulars(db, trip.id)) {
+      if (row.already_on_list) continue;
+      db.addTripItem(trip.id, { itemId: row.item_id, categoryKey: row.category_key });
+    }
+    renderListsResponse(res, trip.id);
   });
 
   return router;

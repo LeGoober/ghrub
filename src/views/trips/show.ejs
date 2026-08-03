@@ -48,6 +48,8 @@
     </form>
   </section>
 
+  <%- include('../partials/insight-buckets', { trip, buckets, cadence, oob: false }) %>
+
   <div id="trip-lists">
     <%- include('../partials/trip-lists', { trip, groups, formatCents }) %>
   </div>
