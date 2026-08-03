@@ -1,0 +1,78 @@
+<%- include('../partials/head', { title }) %>
+  <header class="topbar">
+    <h1>Store prices</h1>
+    <nav class="topbar-links">
+      <a class="btn ghost" href="/history">History</a>
+      <a class="btn ghost" href="/">← Home</a>
+    </nav>
+  </header>
+  <p class="tagline">What things cost, per shop. ghrub uses the most recent price it has.</p>
+
+  <section class="card">
+    <h2>Record a price</h2>
+    <form
+      id="price-form"
+      hx-post="/stores/prices"
+      hx-target="#price-rows"
+      hx-swap="outerHTML"
+      hx-on::after-request="if (event.detail.successful) { this.querySelector('[name=price]').value = ''; }"
+    >
+      <div class="row">
+        <label class="field grow">
+          <span>Item</span>
+          <input
+            id="price-item"
+            name="item_name"
+            autocomplete="off"
+            required
+            value="<%= focusItem ? focusItem.name : '' %>"
+            placeholder="Type to search catalog…"
+            hx-get="/stores/prices/suggest"
+            hx-trigger="keyup changed delay:250ms"
+            hx-target="#price-suggest"
+            hx-swap="innerHTML"
+          />
+        </label>
+        <label class="field">
+          <span>Store</span>
+          <select name="store_id" required>
+            <% stores.forEach((s) => { %>
+              <option value="<%= s.id %>"><%= s.name %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label class="field">
+          <span>Price (R)</span>
+          <input name="price" type="number" min="0" step="0.01" required placeholder="25.99" />
+        </label>
+        <label class="field">
+          <span>Seen on</span>
+          <input name="seen_date" type="date" />
+        </label>
+        <button class="btn" type="submit">Save</button>
+      </div>
+      <div id="price-suggest"></div>
+    </form>
+
+    <% if (focusItem && knownForFocus.length) { %>
+      <p class="muted small known-prices">
+        Last seen for <strong><%= focusItem.name %></strong>:
+        <% knownForFocus.forEach((p, i) => { %><%= i ? ' · ' : '' %><%= p.store_name %>
+          <%= formatCents(p.price_cents) %> <span class="seen-date">(<%= p.seen_date %>)</span><% }) %>
+      </p>
+    <% } %>
+  </section>
+
+  <h2 class="section-title">Recorded prices</h2>
+  <%- include('../partials/price-rows', { prices, formatCents, error: null }) %>
+
+  <script>
+    // Same type-ahead behaviour as the trip workspace: pick a name, clear the list.
+    document.getElementById('price-suggest').addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-pick-name]');
+      if (!btn) return;
+      document.getElementById('price-item').value = btn.dataset.pickName;
+      document.getElementById('price-suggest').innerHTML = '';
+    });
+  </script>
+<%- include('../partials/foot') %>

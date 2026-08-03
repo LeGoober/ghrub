@@ -4,6 +4,7 @@ import path from 'node:path';
 import { createDatabase } from './db/repo.js';
 import { tripsRouter } from './routes/trips.js';
 import { historyRouter } from './routes/history.js';
+import { storesRouter } from './routes/stores.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -25,6 +26,7 @@ export function createApp(db = createDatabase(':memory:')) {
   app.get('/healthz', (_req, res) => res.status(200).json({ ok: true, app: 'ghrub' }));
 
   app.use('/', historyRouter(db));
+  app.use('/', storesRouter(db));
   app.use('/', tripsRouter(db));
 
   return app;
