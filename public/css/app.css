@@ -12,6 +12,15 @@
   --danger: #b3372b;
   --radius: 14px;
   --shadow: 0 1px 3px rgba(28, 27, 24, 0.08);
+
+  /* Chart marks. Validated with the dataviz palette checker, not eyeballed:
+     --accent (#1f6f4a) fails the chroma floor as a chart fill ("reads gray"),
+     so marks use the brighter step of the same green. --chart-over is only
+     ever a *second stacked segment* next to it — green vs red is ΔE 1.7 under
+     protanopia, so the geometry and the "over by R…" label carry the meaning
+     and the colour merely reinforces it. */
+  --chart-mark: #12855a;
+  --chart-over: #c94b3d;
 }
 
 * {
@@ -417,4 +426,310 @@ a {
 .empty {
   text-align: center;
   padding: 24px 0;
+}
+
+/* ---- habit buckets (M2) ---- */
+
+.insight-buckets {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cadence-hint {
+  margin: 0;
+  padding: 10px 14px;
+  background: #eaf3ee;
+  border: 1px solid #cfe3d8;
+  border-radius: var(--radius);
+  font-size: 0.88rem;
+  color: #1c4a35;
+}
+
+.bucket {
+  padding: 12px 16px;
+}
+
+.bucket.is-empty {
+  padding: 10px 16px;
+  opacity: 0.72;
+}
+
+.bucket-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.bucket-title {
+  font-size: 0.95rem;
+}
+
+.bucket-blurb {
+  margin: 2px 0 8px;
+  font-size: 0.82rem;
+}
+
+.btn.small {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 0.82rem;
+}
+
+.chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chips form {
+  margin: 0;
+}
+
+/* Wider and taller than the budget-bar chips: these are tap targets in a shop
+   (docs/06 — keep them >= 44px). */
+.chips .chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  color: var(--ink);
+  text-align: left;
+}
+
+.chip-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.chips .chip-add {
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid #cfe3d8;
+}
+
+.chips .chip-add:hover {
+  background: #eaf3ee;
+}
+
+.chips .chip-add:active {
+  transform: translateY(1px);
+}
+
+.chip-plus {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.chip-name {
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.chip-meta {
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+.chips .chip-static.is-listed {
+  opacity: 0.6;
+}
+
+/* ---- history dashboard (M2) ---- */
+
+.topbar-links {
+  display: flex;
+  gap: 8px;
+}
+
+.hero-label {
+  margin: 0;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+/* Proportional figures on purpose — tabular-nums makes a large number look
+   loose. Tabular is for the table below, where digits must line up. */
+.hero-figure {
+  margin: 2px 0 14px;
+  font-size: 3rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.stat-value {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.chart-card .muted.small {
+  margin-bottom: 10px;
+}
+
+.chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.chart-legend {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 0 0 6px;
+  padding: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.chart-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.key {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.key-within {
+  background: var(--chart-mark);
+}
+
+.key-over {
+  background: var(--chart-over);
+}
+
+.key-tick {
+  height: 2px;
+  border-radius: 0;
+  background: var(--muted);
+}
+
+.chart-bar-within {
+  fill: var(--chart-mark);
+}
+
+.chart-bar-over {
+  fill: var(--chart-over);
+}
+
+/* Hairline, solid, one step off the surface — never dashed. */
+.chart-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.chart-budget {
+  stroke: var(--muted);
+  stroke-width: 2;
+}
+
+/* Chart text wears text tokens, never the mark colour. */
+.chart-tick,
+.chart-axis,
+.chart-label,
+.chart-value {
+  font-size: 10px;
+  fill: var(--muted);
+  font-family: inherit;
+}
+
+.chart-tick,
+.chart-axis {
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-label,
+.chart-value {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+
+.chart-row-label {
+  font-size: 11px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.data-table th,
+.data-table td {
+  text-align: left;
+  padding: 8px 10px 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-weight: 400;
+}
+
+.data-table thead th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.data-table tbody th {
+  font-weight: 600;
+}
+
+.data-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.over-flag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #fdeceb;
+  color: var(--over);
+  font-size: 0.72rem;
+  font-weight: 600;
 }

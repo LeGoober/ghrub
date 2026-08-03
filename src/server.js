@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { createDatabase } from './db/repo.js';
 import { tripsRouter } from './routes/trips.js';
+import { historyRouter } from './routes/history.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -23,6 +24,7 @@ export function createApp(db = createDatabase(':memory:')) {
   // Render health check — must not depend on the DB.
   app.get('/healthz', (_req, res) => res.status(200).json({ ok: true, app: 'ghrub' }));
 
+  app.use('/', historyRouter(db));
   app.use('/', tripsRouter(db));
 
   return app;

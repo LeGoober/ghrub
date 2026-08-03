@@ -1,0 +1,66 @@
+<section class="card bucket bucket-<%= bucket.key %> <%= bucket.rows.length ? '' : 'is-empty' %>" id="bucket-<%= bucket.key %>">
+  <h3 class="bucket-head">
+    <span class="bucket-title"><%= bucket.title %></span>
+    <% if (bucket.key === 'regulars' && bucket.rows.some((r) => !r.already_on_list)) { %>
+      <button
+        class="btn small"
+        type="button"
+        hx-post="/trips/<%= trip.id %>/insights/add-regulars"
+        hx-target="#trip-lists"
+        hx-swap="innerHTML"
+      >
+        Add all
+      </button>
+    <% } %>
+  </h3>
+
+  <% if (!bucket.rows.length) { %>
+    <p class="muted small bucket-blurb">
+      <%= bucket.key === 'new' ? 'Nothing new — every line is something you have bought before.' : 'Nothing to suggest yet — shop a few trips and ghrub will spot the pattern.' %>
+    </p>
+  <% } else { %>
+    <p class="muted small bucket-blurb"><%= bucket.blurb %></p>
+    <ul class="chips">
+      <% bucket.rows.forEach((row) => { %>
+        <li>
+          <% if (bucket.addable && !row.already_on_list) { %>
+            <form
+              hx-post="/trips/<%= trip.id %>/items"
+              hx-target="#trip-lists"
+              hx-swap="innerHTML"
+            >
+              <input type="hidden" name="item_name" value="<%= row.name %>" />
+              <input type="hidden" name="category_key" value="<%= row.category_key %>" />
+              <button class="chip chip-add" type="submit" title="Add <%= row.name %> to the list">
+                <span class="chip-plus" aria-hidden="true">+</span>
+                <span class="chip-text">
+                  <span class="chip-name"><%= row.name %></span>
+                  <span class="chip-meta">
+                    <% if (bucket.key === 'regulars') { %>
+                      <%= row.trips_listed %>/<%= row.total_trips %> lists · bought <%= row.trips_bought %>
+                    <% } else { %>
+                      on <%= row.trips_listed %> past lists
+                    <% } %>
+                  </span>
+                </span>
+              </button>
+            </form>
+          <% } else { %>
+            <span class="chip chip-static <%= row.already_on_list ? 'is-listed' : '' %>">
+              <span class="chip-text">
+                <span class="chip-name"><%= row.name %></span>
+                <span class="chip-meta">
+                  <% if (row.already_on_list) { %>
+                    already on this list
+                  <% } else { %>
+                    first time
+                  <% } %>
+                </span>
+              </span>
+            </span>
+          <% } %>
+        </li>
+      <% }) %>
+    </ul>
+  <% } %>
+</section>

@@ -1,6 +1,6 @@
 <%- include('../partials/head', { title }) %>
   <nav class="crumbs">
-    <a href="/trips">All trips</a> · <a href="/">Home</a>
+    <a href="/trips">All trips</a> · <a href="/history">History</a> · <a href="/">Home</a>
   </nav>
 
   <%- include('../partials/trip-header', { trip, stores }) %>
@@ -47,6 +47,8 @@
       <div id="suggest"></div>
     </form>
   </section>
+
+  <%- include('../partials/insight-buckets', { trip, buckets, cadence, oob: false }) %>
 
   <div id="trip-lists">
     <%- include('../partials/trip-lists', { trip, groups, formatCents }) %>

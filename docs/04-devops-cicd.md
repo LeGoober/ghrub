@@ -14,20 +14,34 @@ feature/*  ──PR──►  dev  ──PR──►  staging  ──PR──►
   `staging` only. Tag releases here (`v0.1.0`, `v0.2.0`).
 - Never commit feature work straight to `staging`/`main`.
 
-**Branch protection (set once, via GitHub UI or `gh`):** on `main` and
-`staging` require PR + passing `ci` check; disallow direct pushes.
+**Branch protection:** applied by `scripts/gh-bootstrap.sh` to `dev`, `staging`
+and `main` — PR required, `build-test` + `docker` must pass, branch must be up
+to date, no force-push, no deletion. Calibrated for a solo repo: 0 required
+approvals (you cannot approve your own PR) and admins not enforced. Re-run the
+script any time; it is idempotent and doubles as a drift check.
 
 ## GitHub Actions
 
-Three workflows in `.github/workflows/` (scaffolded):
+Three workflows in `.github/workflows/`:
 
 | Workflow | Trigger | Does |
 |----------|---------|------|
-| `ci.yml` | PR to any branch + push to `dev` + `workflow_call` | install → lint → format → test → seed smoke → `docker build` |
-| `deploy-staging.yml` | push to `staging` | run `ci.yml`, then `render-deploy-action` → **ghrub-staging** |
-| `deploy-production.yml` | push to `main` | run `ci.yml`, then `render-deploy-action` → **ghrub** |
+| `ci.yml` | PR to any branch + push to `dev` + `workflow_call` | install → lint → format → test → **seed twice (idempotency)** → `docker build` → **container smoke test** |
+| `deploy-staging.yml` | push to `staging`, or manual | run `ci.yml`, then `render-deploy-action` → **ghrub-staging**, then verify live `/healthz` |
+| `deploy-production.yml` | push to `main`, or manual | run `ci.yml`, then `render-deploy-action` → **ghrub**, then verify live `/healthz` |
 
 CI never needs secrets. Deploy workflows reuse your existing `RENDER_API_KEY`.
+
+**Why the container smoke test exists:** `docker build` proves the image
+compiles, never that it runs. M1's better-sqlite3 SIGSEGV built green and
+crashed on boot (`reports/cicd-backtest.md` finding B5). CI now boots the image,
+waits for `/healthz`, drives the DB-backed routes `/` and `/trips`, and asserts
+the container is still alive afterwards — exit 139 is a segfault.
+
+**Post-deploy verification:** set repo *variables* `STAGING_URL` and
+`PRODUCTION_URL` (e.g. `https://ghrub.onrender.com`) and each deploy workflow
+polls the live `/healthz` after deploying. Without them the step is skipped, so
+"Render says deployed" is the only assurance you get.
 
 ## Render deployment (mirrors Underground Terminal)
 
@@ -36,6 +50,10 @@ plus `johnbeynon/render-deploy-action` driven by your `RENDER_API_KEY`.
 `autoDeploy` is off so CI gates every deploy.
 
 ### One-time setup
+> **Status: not done.** Both deploy workflows currently fail at their secrets
+> guard, so nothing is deployed and M0's DoD is still open. See
+> `reports/cicd-backtest.md` finding **B4**.
+
 1. **Create services from the Blueprint.** Render Dashboard → **New → Blueprint**
    → pick the `ghrub` repo → it reads `render.yaml` and creates two web services:
    `ghrub` (branch `main`) and `ghrub-staging` (branch `staging`).

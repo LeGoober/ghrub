@@ -296,6 +296,103 @@ export function createDatabase(dbPath = process.env.DATABASE_PATH || DEFAULT_DB_
       return { budgetCents, subtotalCents, pct, state, lineCount, boughtCount, byCategory };
     },
 
+    // ---- habit intelligence (M2) ----
+    // These are the raw shapes only. The thresholds, ratios and cadence maths
+    // live in src/lib/insights.js — SQL stays here so the Postgres swap stays
+    // contained (docs/05 hard rule).
+
+    /**
+     * How often each catalog item recurs across trips — both counts in one
+     * pass: how many trips *listed* it, and how many actually *bought* it.
+     * Callers pick the numerator (see src/lib/insights.js).
+     *
+     * `excludeTripId` drops a trip from the counts AND from total_trips, so
+     * opening a fresh trip cannot dilute its own suggestions with itself.
+     *
+     * @param {number|null} excludeTripId
+     */
+    itemFrequency(excludeTripId = null) {
+      return db
+        .prepare(
+          `SELECT i.id AS item_id, i.name, ti.category_key, c.label AS category_label,
+                  COUNT(DISTINCT ti.trip_id) AS trips_listed,
+                  COUNT(DISTINCT CASE WHEN ti.bought = 1 THEN ti.trip_id END) AS trips_bought,
+                  (SELECT COUNT(*) FROM trip WHERE id IS NOT @exclude) AS total_trips
+           FROM trip_item ti
+           JOIN item i ON i.id = ti.item_id
+           JOIN category c ON c.key = ti.category_key
+           WHERE ti.trip_id IS NOT @exclude
+           GROUP BY ti.item_id
+           ORDER BY trips_listed DESC, trips_bought DESC, i.name`
+        )
+        .all({ exclude: excludeTripId });
+    },
+
+    /** Item ids already on a trip — used to filter suggestions. */
+    itemIdsOnTrip(tripId) {
+      return db
+        .prepare('SELECT item_id FROM trip_item WHERE trip_id = ?')
+        .all(tripId)
+        .map((r) => r.item_id);
+    },
+
+    /** Lines on this trip whose item has never appeared on any other trip. */
+    itemsFirstSeenOnTrip(tripId) {
+      return db
+        .prepare(
+          `SELECT ti.id, ti.item_id, i.name, ti.category_key, c.label AS category_label
+           FROM trip_item ti
+           JOIN item i ON i.id = ti.item_id
+           JOIN category c ON c.key = ti.category_key
+           WHERE ti.trip_id = @tripId
+             AND NOT EXISTS (
+               SELECT 1 FROM trip_item o
+               WHERE o.item_id = ti.item_id AND o.trip_id <> @tripId
+             )
+           ORDER BY c.sort, i.name`
+        )
+        .all({ tripId });
+    },
+
+    /** One row per trip: dates, budget and blended spend. Oldest first. */
+    tripSpendSummaries() {
+      return db
+        .prepare(
+          `SELECT t.id, t.name, t.start_date, t.end_date, t.shop_date, t.status,
+                  t.budget_cents,
+                  COUNT(ti.id) AS line_count,
+                  COALESCE(SUM(ti.bought), 0) AS bought_count,
+                  COALESCE(SUM(COALESCE(ti.actual_cents, ti.est_cents, 0)), 0) AS total_cents,
+                  COALESCE(t.shop_date, t.start_date, t.created_at) AS effective_date
+           FROM trip t
+           LEFT JOIN trip_item ti ON ti.trip_id = t.id
+           GROUP BY t.id
+           ORDER BY effective_date, t.id`
+        )
+        .all();
+    },
+
+    /** Average spend per category per trip — the budgeting baseline (docs/02). */
+    categorySpendAverages() {
+      return db
+        .prepare(
+          `SELECT c.key AS category_key, c.label AS category_label,
+                  COUNT(*) AS trips_with_category,
+                  CAST(ROUND(AVG(x.trip_total)) AS INTEGER) AS avg_cents,
+                  SUM(x.trip_total) AS total_cents
+           FROM (
+             SELECT trip_id, category_key,
+                    SUM(COALESCE(actual_cents, est_cents, 0)) AS trip_total
+             FROM trip_item
+             GROUP BY trip_id, category_key
+           ) x
+           JOIN category c ON c.key = x.category_key
+           GROUP BY c.key, c.label
+           ORDER BY avg_cents DESC, c.label`
+        )
+        .all();
+    },
+
     // ---- recipes (seeded; used from M2 on) ----
 
     upsertRecipe(name) {
