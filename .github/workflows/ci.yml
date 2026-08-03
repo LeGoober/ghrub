@@ -11,6 +11,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   build-test:
     runs-on: ubuntu-latest
@@ -34,15 +37,62 @@ jobs:
       - name: Test
         run: npm test
 
-      # M1+: once scripts/seed.js + schema exist, this proves the seed stays green.
-      # Guarded so it is a no-op until the seed script is added.
-      - name: Seed smoke (M1+)
-        run: '[ -f scripts/seed.js ] && node scripts/seed.js || echo "no seed yet (pre-M1) — skipping"'
+      # Idempotency is a hard rule (docs/05-agent-runbook.md) but CI only ever
+      # ran the seed ONCE, so a duplicating seed would have shipped green.
+      # Import twice and require identical counts.
+      - name: Seed smoke — import twice, prove idempotent
+        run: |
+          node scripts/seed.js | tee /tmp/seed-run-1.txt
+          node scripts/seed.js | tee /tmp/seed-run-2.txt
+          if ! diff -q /tmp/seed-run-1.txt /tmp/seed-run-2.txt >/dev/null; then
+            echo "::error::seed is not idempotent — row counts changed on re-run"
+            diff /tmp/seed-run-1.txt /tmp/seed-run-2.txt || true
+            exit 1
+          fi
+          echo "seed idempotent across two runs"
 
   docker:
     runs-on: ubuntu-latest
     needs: build-test
     steps:
       - uses: actions/checkout@v4
+
       - name: Docker build
         run: docker build -t ghrub:ci .
+
+      # M1 shipped a better-sqlite3 SIGSEGV to Render on a fully green CI,
+      # because `docker build` proves the image *compiles*, never that it RUNS.
+      # Boot the image and drive DB-backed routes — that is where the native
+      # addon actually loads, and where the segfault surfaced.
+      - name: Container smoke test — boot, serve, survive
+        run: |
+          docker run -d --name ghrub-smoke -p 3000:3000 \
+            -e DATABASE_PATH=/tmp/ghrub-smoke.db ghrub:ci
+
+          ready=""
+          for _ in $(seq 1 30); do
+            if curl -fsS http://localhost:3000/healthz >/dev/null 2>&1; then ready=1; break; fi
+            sleep 1
+          done
+          if [ -z "$ready" ]; then
+            echo "::error::container never answered /healthz"
+            docker logs ghrub-smoke || true
+            docker rm -f ghrub-smoke >/dev/null 2>&1 || true
+            exit 1
+          fi
+
+          # /healthz is deliberately DB-free (it is Render's health check), so it
+          # sails straight past a broken database layer. These routes open SQLite.
+          curl -fsS http://localhost:3000/ >/dev/null
+          curl -fsS http://localhost:3000/trips >/dev/null
+
+          running=$(docker inspect -f '{{.State.Running}}' ghrub-smoke)
+          code=$(docker inspect -f '{{.State.ExitCode}}' ghrub-smoke)
+          docker logs ghrub-smoke
+          docker rm -f ghrub-smoke >/dev/null 2>&1 || true
+
+          if [ "$running" != "true" ]; then
+            echo "::error::container died while serving DB traffic (exit $code; 139 = SIGSEGV)"
+            exit 1
+          fi
+          echo "container smoke test passed — image boots and serves DB-backed routes"
