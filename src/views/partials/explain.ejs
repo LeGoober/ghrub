@@ -1,0 +1,20 @@
+<div id="explain-panel" class="card explain">
+  <h3 class="explain-head">
+    <span>Your shop, read back</span>
+    <button
+      class="btn ghost small"
+      hx-get="/trips/<%= trip.id %>/explain"
+      hx-target="#explain-panel"
+      hx-swap="outerHTML"
+    >
+      <%= error ? 'Try again' : 'Again' %>
+    </button>
+  </h3>
+
+  <% if (error) { %>
+    <p class="muted small"><%= error %></p>
+  <% } else { %>
+    <p class="explain-text"><%= text %></p>
+    <p class="muted small explain-model">Written by <%= model %> from your own numbers.</p>
+  <% } %>
+</div>
