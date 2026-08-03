@@ -5,6 +5,7 @@ import { createDatabase } from './db/repo.js';
 import { tripsRouter } from './routes/trips.js';
 import { historyRouter } from './routes/history.js';
 import { storesRouter } from './routes/stores.js';
+import { kitchenRouter } from './routes/kitchen.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -27,6 +28,7 @@ export function createApp(db = createDatabase(':memory:')) {
 
   app.use('/', historyRouter(db));
   app.use('/', storesRouter(db));
+  app.use('/', kitchenRouter(db));
   app.use('/', tripsRouter(db));
 
   return app;

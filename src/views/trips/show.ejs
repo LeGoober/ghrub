@@ -64,6 +64,10 @@
     hx-swap="innerHTML"
   ></div>
 
+  <!-- The meal-plan grid is heavier than the rest of the page and only matters
+       once the trip has dates, so it loads on demand too (M4). -->
+  <div hx-get="/trips/<%= trip.id %>/plan" hx-trigger="load" hx-swap="innerHTML"></div>
+
   <script>
     // Pick a type-ahead suggestion: fill the item input, clear the dropdown.
     document.getElementById('suggest').addEventListener('click', (event) => {

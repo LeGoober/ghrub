@@ -815,6 +815,143 @@ a {
   margin-top: 10px;
 }
 
+/* ---- recipes, inventory, meal plan (M4) ---- */
+
+.low-banner {
+  margin: 0 0 10px;
+  padding: 10px 14px;
+  background: #fdf3e3;
+  border: 1px solid #ecd9b0;
+  border-radius: var(--radius);
+  font-size: 0.88rem;
+  color: #6f4e15;
+}
+
+.data-table .is-low th[scope='row'] {
+  color: #8a6220;
+}
+
+.nudge {
+  display: flex;
+  gap: 6px;
+}
+
+.nudge .btn {
+  min-width: 40px;
+  padding: 0 10px;
+  font-size: 1rem;
+}
+
+.recipe-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recipe {
+  padding: 12px 16px;
+}
+
+.recipe-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.98rem;
+}
+
+.recipe-head form {
+  margin: 0;
+}
+
+.recipe details {
+  margin-top: 8px;
+}
+
+.recipe summary {
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--muted);
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+
+.ingredient-editor textarea {
+  width: 100%;
+  margin: 6px 0 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+}
+
+.logged {
+  padding: 10px 14px;
+  background: #eaf3ee;
+  border: 1px solid #cfe3d8;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+}
+
+.logged p {
+  margin: 0;
+}
+
+.drawdown {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 0.85rem;
+}
+
+.meal-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+
+.meal-history li {
+  display: flex;
+  gap: 10px;
+}
+
+.meal-date {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.plan-grid td,
+.plan-grid th {
+  padding: 4px 6px 4px 0;
+}
+
+.plan-day {
+  white-space: nowrap;
+  font-size: 0.82rem;
+}
+
+.plan-cell select {
+  min-width: 92px;
+  max-width: 132px;
+  font-size: 0.8rem;
+  padding: 6px 4px;
+}
+
+.plan-grid thead th {
+  text-transform: capitalize;
+}
+
 .over-flag {
   display: inline-block;
   margin-left: 6px;

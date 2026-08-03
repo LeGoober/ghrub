@@ -1,0 +1,46 @@
+<%- include('../partials/head', { title }) %>
+  <header class="topbar">
+    <h1>Inventory</h1>
+    <nav class="topbar-links">
+      <a class="btn ghost" href="/recipes">Recipes</a>
+      <a class="btn ghost" href="/">← Home</a>
+    </nav>
+  </header>
+  <p class="tagline">What you have at home. Eating a meal draws it down; ticking a line bought puts it back.</p>
+
+  <section class="card">
+    <h2>Track an item</h2>
+    <form
+      hx-post="/inventory"
+      hx-target="#inventory-table"
+      hx-swap="outerHTML"
+      hx-on::after-request="if (event.detail.successful) this.reset()"
+    >
+      <div class="row">
+        <label class="field grow">
+          <span>Item</span>
+          <input name="item_name" required autocomplete="off" placeholder="e.g. Eggs" list="catalog" />
+          <datalist id="catalog">
+            <% items.forEach((i) => { %><option value="<%= i.name %>"></option><% }) %>
+          </datalist>
+        </label>
+        <label class="field">
+          <span>On hand</span>
+          <input name="qty_on_hand" type="number" min="0" step="0.5" required value="1" />
+        </label>
+        <label class="field">
+          <span>Unit</span>
+          <input name="unit" placeholder="pack" />
+        </label>
+        <label class="field">
+          <span>Restock at</span>
+          <input name="low_threshold" type="number" min="0" step="0.5" value="1" />
+        </label>
+        <button class="btn" type="submit">Track</button>
+      </div>
+    </form>
+  </section>
+
+  <h2 class="section-title">On hand</h2>
+  <%- include('../partials/inventory-table', { rows, lowStock, error: null }) %>
+<%- include('../partials/foot') %>
