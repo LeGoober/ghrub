@@ -2,10 +2,17 @@ name: deploy-production
 
 # Deploys the `main` branch to the ghrub Render service after CI.
 # Uses your existing RENDER_API_KEY + the production service id.
+#
+# workflow_dispatch is here so the deploy can be retried from the Actions tab
+# once the Render secrets land — without needing an empty commit to re-trigger.
 
 on:
   push:
     branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
 
 jobs:
   ci:
@@ -22,12 +29,42 @@ jobs:
           SID: ${{ secrets.RENDER_SERVICE_ID_PRODUCTION }}
         run: |
           if [ -z "$KEY" ] || [ -z "$SID" ]; then
-            echo "::error::Set RENDER_API_KEY and RENDER_SERVICE_ID_PRODUCTION in repo Settings > Secrets."
+            echo "::error::Render deploy is not configured — this branch built and tested fine, but nothing was deployed."
+            {
+              echo "### Deploy skipped — Render not wired up yet"
+              echo ""
+              echo "CI passed; the deploy step needs two secrets. From a shell with your Render key:"
+              echo ""
+              echo '```bash'
+              echo 'gh secret set RENDER_API_KEY --body "$RENDER_API_KEY"'
+              echo 'gh secret set RENDER_SERVICE_ID_PRODUCTION --body "srv-xxxxxxxx"'
+              echo '```'
+              echo ""
+              echo "Then re-run this workflow from the Actions tab (workflow_dispatch)."
+              echo "See docs/04-devops-cicd.md § One-time setup."
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
+
+      # Pinned to the v0.0.8 commit SHA: a moved tag on a third-party action
+      # would otherwise run unreviewed code with our Render API key.
       - name: Deploy to Render (production)
-        uses: johnbeynon/render-deploy-action@v0.0.8
+        uses: johnbeynon/render-deploy-action@a0588f9aca995a15d69a72cb2bfbf37c12e5b540 # v0.0.8
         with:
           service-id: ${{ secrets.RENDER_SERVICE_ID_PRODUCTION }}
           api-key: ${{ secrets.RENDER_API_KEY }}
           wait-for-success: true
+
+      # "Deploy succeeded" is Render's word for it. Confirm the service actually
+      # serves traffic before calling the promotion done.
+      - name: Verify deployed /healthz
+        if: ${{ vars.PRODUCTION_URL != '' }}
+        run: |
+          for _ in $(seq 1 20); do
+            if curl -fsS "${{ vars.PRODUCTION_URL }}/healthz" | grep -q '"ok":true'; then
+              echo "production /healthz is live"; exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::${{ vars.PRODUCTION_URL }}/healthz did not return ok:true after deploy"
+          exit 1
