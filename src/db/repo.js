@@ -393,6 +393,90 @@ export function createDatabase(dbPath = process.env.DATABASE_PATH || DEFAULT_DB_
         .all();
     },
 
+    // ---- store prices (M3) ----
+    // schema.sql keys store_price on (item_id, store_id, seen_date), so the
+    // table is a price *history*: recording a new price on a new day adds a row
+    // rather than overwriting, and "the price" means the most recent one.
+
+    /** Record a price. Re-recording on the same day corrects that day's entry. */
+    upsertStorePrice(itemId, storeId, priceCents, seenDate = null) {
+      db.prepare(
+        `INSERT INTO store_price (item_id, store_id, price_cents, seen_date)
+         VALUES (@item_id, @store_id, @price_cents, COALESCE(@seen_date, date('now')))
+         ON CONFLICT(item_id, store_id, seen_date)
+           DO UPDATE SET price_cents = excluded.price_cents`
+      ).run({
+        item_id: itemId,
+        store_id: storeId,
+        price_cents: priceCents,
+        seen_date: seenDate,
+      });
+    },
+
+    /**
+     * The latest price for every (item, store) pair on a trip's list.
+     *
+     * One row per line per store that has ever been priced — lines with no
+     * price at a store are simply absent, so the caller can flag them instead
+     * of treating a missing price as free (docs/02).
+     */
+    latestPricesForTrip(tripId) {
+      return db
+        .prepare(
+          `SELECT ti.id AS line_id, ti.qty, i.id AS item_id, i.name AS item_name,
+                  s.id AS store_id, s.name AS store_name,
+                  sp.price_cents, sp.seen_date
+           FROM trip_item ti
+           JOIN item i ON i.id = ti.item_id
+           JOIN store_price sp ON sp.item_id = ti.item_id
+           JOIN store s ON s.id = sp.store_id
+           JOIN (
+             SELECT item_id, store_id, MAX(seen_date) AS latest
+             FROM store_price GROUP BY item_id, store_id
+           ) newest
+             ON newest.item_id = sp.item_id
+            AND newest.store_id = sp.store_id
+            AND newest.latest = sp.seen_date
+           WHERE ti.trip_id = ?
+           ORDER BY i.name, s.name`
+        )
+        .all(tripId);
+    },
+
+    /** Latest price per store for one item — powers "remembers last price". */
+    latestPricesForItem(itemId) {
+      return db
+        .prepare(
+          `SELECT s.id AS store_id, s.name AS store_name, sp.price_cents, sp.seen_date
+           FROM store_price sp
+           JOIN store s ON s.id = sp.store_id
+           JOIN (
+             SELECT store_id, MAX(seen_date) AS latest
+             FROM store_price WHERE item_id = @itemId GROUP BY store_id
+           ) newest
+             ON newest.store_id = sp.store_id AND newest.latest = sp.seen_date
+           WHERE sp.item_id = @itemId
+           ORDER BY s.name`
+        )
+        .all({ itemId });
+    },
+
+    /** Most recently recorded prices, newest first — the /stores/prices table. */
+    listStorePrices(limit = 40) {
+      return db
+        .prepare(
+          `SELECT sp.id, sp.price_cents, sp.seen_date,
+                  i.id AS item_id, i.name AS item_name,
+                  s.id AS store_id, s.name AS store_name
+           FROM store_price sp
+           JOIN item i ON i.id = sp.item_id
+           JOIN store s ON s.id = sp.store_id
+           ORDER BY sp.seen_date DESC, sp.id DESC
+           LIMIT ?`
+        )
+        .all(limit);
+    },
+
     // ---- recipes (seeded; used from M2 on) ----
 
     upsertRecipe(name) {

@@ -723,6 +723,98 @@ a {
   white-space: nowrap;
 }
 
+/* ---- store comparison (M3) ---- */
+
+.verdict {
+  margin: 0 0 2px;
+  font-size: 1.05rem;
+}
+
+.verdict.is-thin {
+  opacity: 0.75;
+}
+
+.basis {
+  margin-bottom: 10px;
+}
+
+.compare-table .is-cheapest {
+  background: #eaf3ee;
+}
+
+.badge-cheapest {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--chart-mark);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Never styled as "zero" — an unpriced line is missing information, not free. */
+.unpriced-flag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #fdf3e3;
+  border: 1px solid #ecd9b0;
+  color: #8a6220;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.split-shop {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.split-shop h3 {
+  font-size: 0.95rem;
+}
+
+.stops {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stops li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #f7f5ef;
+  border-radius: 10px;
+  font-size: 0.9rem;
+}
+
+.stop-items {
+  flex: 1 1 100%;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.seen-date {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.known-prices {
+  margin-top: 10px;
+}
+
 .over-flag {
   display: inline-block;
   margin-left: 6px;
