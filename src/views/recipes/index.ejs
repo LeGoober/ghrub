@@ -1,0 +1,83 @@
+<%- include('../partials/head', { title }) %>
+  <header class="topbar">
+    <h1>Recipes</h1>
+    <nav class="topbar-links">
+      <a class="btn ghost" href="/inventory">Inventory</a>
+      <a class="btn ghost" href="/">← Home</a>
+    </nav>
+  </header>
+  <p class="tagline">What you cook, and what it uses. Logging a meal draws its ingredients out of your inventory.</p>
+
+  <section class="card">
+    <h2>Add a recipe</h2>
+    <form
+      hx-post="/recipes"
+      hx-target="#recipe-list"
+      hx-swap="afterbegin"
+      hx-on::after-request="if (event.detail.successful) this.reset()"
+    >
+      <div class="row">
+        <label class="field grow">
+          <span>Name</span>
+          <input name="name" required placeholder="e.g. Chicken Alfredo" />
+        </label>
+        <button class="btn" type="submit">Add</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Log a meal</h2>
+    <p class="muted small">Pick a recipe to draw its ingredients down, or just note what you ate.</p>
+    <form
+      hx-post="/meals/log"
+      hx-target="#meal-log"
+      hx-swap="outerHTML"
+      hx-on::after-request="if (event.detail.successful) this.reset()"
+    >
+      <div class="row">
+        <label class="field grow">
+          <span>Recipe</span>
+          <select name="recipe_id">
+            <option value="">— something else —</option>
+            <% recipes.forEach((r) => { %>
+              <option value="<%= r.id %>"><%= r.name %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label class="field grow">
+          <span>Or describe it</span>
+          <input name="free_text" placeholder="Leftovers" />
+        </label>
+        <label class="field">
+          <span>When</span>
+          <input name="eaten_date" type="date" />
+        </label>
+        <button class="btn" type="submit">Log it</button>
+      </div>
+    </form>
+  </section>
+
+  <div id="meal-log">
+    <h3 class="section-title">Recently eaten</h3>
+    <% if (recentMeals.length) { %>
+      <ul class="meal-history">
+        <% recentMeals.forEach((meal) => { %>
+          <li>
+            <span class="meal-date"><%= meal.eaten_date %></span>
+            <span><%= meal.recipe_name || meal.free_text %></span>
+          </li>
+        <% }) %>
+      </ul>
+    <% } else { %>
+      <p class="muted">Nothing logged yet.</p>
+    <% } %>
+  </div>
+
+  <h2 class="section-title">Catalog</h2>
+  <div id="recipe-list" class="recipe-list">
+    <% recipes.forEach((recipe) => { %>
+      <%- include('../partials/recipe-card', { recipe, open: false }) %>
+    <% }) %>
+  </div>
+<%- include('../partials/foot') %>

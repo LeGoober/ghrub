@@ -16,7 +16,13 @@
 
   <% if (!bucket.rows.length) { %>
     <p class="muted small bucket-blurb">
-      <%= bucket.key === 'new' ? 'Nothing new — every line is something you have bought before.' : 'Nothing to suggest yet — shop a few trips and ghrub will spot the pattern.' %>
+      <% if (bucket.key === 'new') { %>
+        Nothing new — every line is something you have bought before.
+      <% } else if (bucket.key === 'low') { %>
+        Nothing running low. <a href="/inventory">Track what you have at home</a> and ghrub will flag it here.
+      <% } else { %>
+        Nothing to suggest yet — shop a few trips and ghrub will spot the pattern.
+      <% } %>
     </p>
   <% } else { %>
     <p class="muted small bucket-blurb"><%= bucket.blurb %></p>
@@ -38,6 +44,8 @@
                   <span class="chip-meta">
                     <% if (bucket.key === 'regulars') { %>
                       <%= row.trips_listed %>/<%= row.total_trips %> lists · bought <%= row.trips_bought %>
+                    <% } else if (bucket.key === 'low') { %>
+                      <%= row.qty_on_hand %><%= row.unit ? ' ' + row.unit : '' %> left · restock at <%= row.low_threshold %>
                     <% } else { %>
                       on <%= row.trips_listed %> past lists
                     <% } %>

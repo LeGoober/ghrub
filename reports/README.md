@@ -24,7 +24,8 @@ The loop (from `docs/05-agent-runbook.md`):
 | [CI/CD backtest — M0 & M1](cicd-backtest.md) | audit | ✔ findings + remediation; B4 open (needs Render secrets) |
 | [M2 — habit intelligence](M2-checklist.md) | M2 `[MVP]` | ✔ implemented, 52 tests green (see file) |
 | [M3 — store price comparison](M3-checklist.md) | M3 `[MVP]` | ✔ implemented, 74 tests green (see file) |
-| `_milestone-template.md` | M4+ | template |
+| [M4 — recipes → inventory](M4-checklist.md) | M4 `[v0.2]` | ✔ implemented, 101 tests green (see file) |
+| `_milestone-template.md` | M5 | template |
 
 ## Evidence conventions
 

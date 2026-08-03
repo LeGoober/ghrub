@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { toCents, formatCents } from '../lib/money.js';
 import { regulars, newThisList, oftenForgotten, cadence } from '../lib/insights.js';
+import { applyBoughtToInventory, lowStockSuggestions } from '../lib/kitchen.js';
 
 function blankToNull(value) {
   if (value === null || value === undefined) return null;
@@ -56,6 +57,13 @@ export function tripsRouter(db) {
       blurb: 'You list these a lot — but not this time.',
       addable: true,
       rows: (tripId) => oftenForgotten(db, tripId),
+    },
+    {
+      key: 'low',
+      title: 'Running low',
+      blurb: 'At or below the level you set in your inventory.',
+      addable: true,
+      rows: (tripId) => lowStockSuggestions(db, tripId),
     },
   ];
 
@@ -228,6 +236,16 @@ export function tripsRouter(db) {
     if ('actual' in req.body) fields.actual_cents = toCents(req.body.actual);
     if (req.body.category_key) fields.category_key = String(req.body.category_key);
     db.updateTripItem(line.id, fields);
+
+    // M4: buying restocks the kitchen. Only on the transition — this route also
+    // fires when you edit a price on an already-ticked line, and that must not
+    // add another unit.
+    applyBoughtToInventory(db, {
+      itemId: line.item_id,
+      qty: fields.qty ?? line.qty,
+      wasBought: line.bought,
+      isBought: fields.bought,
+    });
     renderListsResponse(res, trip.id);
   });
 
@@ -238,6 +256,14 @@ export function tripsRouter(db) {
       res.status(404).render('partials/error', { status: 404, message: 'Item not found.' });
       return;
     }
+    // Removing a line you had already ticked takes that unit back off the
+    // shelf — same transition as un-ticking it (M4).
+    applyBoughtToInventory(db, {
+      itemId: line.item_id,
+      qty: line.qty,
+      wasBought: line.bought,
+      isBought: 0,
+    });
     db.deleteTripItem(line.id);
     renderListsResponse(res, line.trip_id);
   });

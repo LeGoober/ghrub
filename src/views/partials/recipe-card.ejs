@@ -1,0 +1,35 @@
+<article class="card recipe" id="recipe-<%= recipe.id %>">
+  <h3 class="recipe-head">
+    <span><%= recipe.name %></span>
+    <form
+      hx-post="/meals/log"
+      hx-target="#meal-log"
+      hx-swap="outerHTML"
+    >
+      <input type="hidden" name="recipe_id" value="<%= recipe.id %>" />
+      <button class="btn small" type="submit" title="Log this as eaten and draw down its ingredients">
+        Ate this
+      </button>
+    </form>
+  </h3>
+
+  <% if (recipe.ingredients.length) { %>
+    <p class="muted small"><%= recipe.ingredients.map((i) => i.item_name).join(' · ') %></p>
+  <% } else { %>
+    <p class="muted small">No ingredients yet — eating it will not move any stock.</p>
+  <% } %>
+
+  <details <%= typeof open !== 'undefined' && open && !recipe.ingredients.length ? 'open' : '' %>>
+    <summary>Edit ingredients</summary>
+    <form
+      class="ingredient-editor"
+      hx-post="/recipes/<%= recipe.id %>/ingredients"
+      hx-target="#recipe-<%= recipe.id %>"
+      hx-swap="outerHTML"
+    >
+      <p class="muted small">One per line. Anything new is added to the catalog.</p>
+      <textarea name="ingredient" rows="4" placeholder="Pasta&#10;Chicken breasts&#10;Onions"><%= recipe.ingredients.map((i) => i.item_name).join('\n') %></textarea>
+      <button class="btn" type="submit">Save ingredients</button>
+    </form>
+  </details>
+</article>
