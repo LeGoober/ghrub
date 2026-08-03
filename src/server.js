@@ -26,10 +26,39 @@ export function createApp(db = createDatabase(':memory:')) {
   // Render health check — must not depend on the DB.
   app.get('/healthz', (_req, res) => res.status(200).json({ ok: true, app: 'ghrub' }));
 
+  // PWA (M5). Both are served from the root on purpose: a service worker can
+  // only control the paths below its own URL, so one mounted at /static/sw.js
+  // could never intercept the pages it exists for.
+  const publicDir = path.join(__dirname, '..', 'public');
+  app.get('/sw.js', (_req, res) => res.sendFile(path.join(publicDir, 'sw.js')));
+  app.get('/manifest.webmanifest', (_req, res) =>
+    res.sendFile(path.join(publicDir, 'manifest.webmanifest'))
+  );
+
   app.use('/', historyRouter(db));
   app.use('/', storesRouter(db));
   app.use('/', kitchenRouter(db));
   app.use('/', tripsRouter(db));
+
+  // Anything unmatched is a real 404 rather than Express's default HTML stub.
+  app.use((_req, res) => {
+    res.status(404).render('error-page', {
+      title: 'Not found',
+      status: 404,
+      message: 'That page does not exist. It may have been a trip you have since deleted.',
+    });
+  });
+
+  // Last line of defence: a rendering or DB failure shows a human page, never
+  // a stack trace (docs/06 — "don't throw HTML 500s at the user").
+  app.use((err, _req, res, _next) => {
+    console.error('unhandled error:', err);
+    res.status(500).render('error-page', {
+      title: 'Something broke',
+      status: 500,
+      message: 'ghrub hit an unexpected error. Your list is safe — try that again.',
+    });
+  });
 
   return app;
 }

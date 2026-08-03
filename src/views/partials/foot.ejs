@@ -1,3 +1,12 @@
     </main>
+    <script>
+      // Installability (M5). Registration is best-effort: the service worker
+      // only caches the static shell, so a failure here costs nothing.
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
   </body>
 </html>
