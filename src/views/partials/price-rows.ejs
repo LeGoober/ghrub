@@ -1,0 +1,32 @@
+<div id="price-rows">
+  <% if (typeof error !== 'undefined' && error) { %>
+    <div class="error" role="alert"><%= error %></div>
+  <% } %>
+
+  <% if (!prices.length) { %>
+    <p class="muted empty">Nothing recorded yet — add your first price above.</p>
+  <% } else { %>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">Item</th>
+            <th scope="col">Store</th>
+            <th scope="col" class="num">Price</th>
+            <th scope="col">Seen</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% prices.forEach((row) => { %>
+            <tr>
+              <th scope="row"><%= row.item_name %></th>
+              <td><%= row.store_name %></td>
+              <td class="num"><%= formatCents(row.price_cents) %></td>
+              <td class="seen-date"><%= row.seen_date %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
