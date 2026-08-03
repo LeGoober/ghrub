@@ -1,0 +1,65 @@
+<div id="inventory-table">
+  <% if (typeof error !== 'undefined' && error) { %>
+    <div class="error" role="alert"><%= error %></div>
+  <% } %>
+
+  <% if (lowStock.length) { %>
+    <p class="low-banner">
+      <strong><%= lowStock.length %></strong>
+      item<%= lowStock.length === 1 ? '' : 's' %> running low:
+      <%= lowStock.map((r) => r.item_name).join(', ') %>.
+      They show up as suggestions on your next trip.
+    </p>
+  <% } %>
+
+  <% if (!rows.length) { %>
+    <p class="muted empty">Nothing tracked yet — add what you have at home above.</p>
+  <% } else { %>
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">Item</th>
+            <th scope="col" class="num">On hand</th>
+            <th scope="col" class="num">Restock at</th>
+            <th scope="col">Adjust</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% rows.forEach((row) => { %>
+            <tr class="<%= row.qty_on_hand <= row.low_threshold ? 'is-low' : '' %>">
+              <th scope="row">
+                <%= row.item_name %>
+                <% if (row.qty_on_hand <= row.low_threshold) { %>
+                  <span class="unpriced-flag">low</span>
+                <% } %>
+              </th>
+              <td class="num"><%= row.qty_on_hand %><%= row.unit ? ' ' + row.unit : '' %></td>
+              <td class="num"><%= row.low_threshold %></td>
+              <td>
+                <div class="nudge">
+                  <button
+                    class="btn ghost small"
+                    hx-patch="/inventory/<%= row.item_id %>"
+                    hx-vals='{"delta": -1}'
+                    hx-target="#inventory-table"
+                    hx-swap="outerHTML"
+                    aria-label="Remove one <%= row.item_name %>"
+                  >−</button>
+                  <button
+                    class="btn ghost small"
+                    hx-patch="/inventory/<%= row.item_id %>"
+                    hx-vals='{"delta": 1}'
+                    hx-target="#inventory-table"
+                    hx-swap="outerHTML"
+                    aria-label="Add one <%= row.item_name %>"
+                  >+</button>
+                </div>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>

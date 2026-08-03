@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { toCents, formatCents } from '../lib/money.js';
 import { regulars, newThisList, oftenForgotten, cadence } from '../lib/insights.js';
+import { applyBoughtToInventory, lowStockSuggestions } from '../lib/kitchen.js';
+import { compareBasket } from '../lib/compare.js';
+import { llmEnabled, buildFactSheet, requestExplanation } from '../lib/explain.js';
 
 function blankToNull(value) {
   if (value === null || value === undefined) return null;
@@ -56,6 +59,13 @@ export function tripsRouter(db) {
       blurb: 'You list these a lot — but not this time.',
       addable: true,
       rows: (tripId) => oftenForgotten(db, tripId),
+    },
+    {
+      key: 'low',
+      title: 'Running low',
+      blurb: 'At or below the level you set in your inventory.',
+      addable: true,
+      rows: (tripId) => lowStockSuggestions(db, tripId),
     },
   ];
 
@@ -148,6 +158,7 @@ export function tripsRouter(db) {
       groups,
       buckets: buildBuckets(trip.id),
       cadence: cadence(db),
+      llm: llmEnabled(),
       stores: db.listStores(),
       categories: db.listCategories(),
       formatCents,
@@ -228,6 +239,16 @@ export function tripsRouter(db) {
     if ('actual' in req.body) fields.actual_cents = toCents(req.body.actual);
     if (req.body.category_key) fields.category_key = String(req.body.category_key);
     db.updateTripItem(line.id, fields);
+
+    // M4: buying restocks the kitchen. Only on the transition — this route also
+    // fires when you edit a price on an already-ticked line, and that must not
+    // add another unit.
+    applyBoughtToInventory(db, {
+      itemId: line.item_id,
+      qty: fields.qty ?? line.qty,
+      wasBought: line.bought,
+      isBought: fields.bought,
+    });
     renderListsResponse(res, trip.id);
   });
 
@@ -238,6 +259,14 @@ export function tripsRouter(db) {
       res.status(404).render('partials/error', { status: 404, message: 'Item not found.' });
       return;
     }
+    // Removing a line you had already ticked takes that unit back off the
+    // shelf — same transition as un-ticking it (M4).
+    applyBoughtToInventory(db, {
+      itemId: line.item_id,
+      qty: line.qty,
+      wasBought: line.bought,
+      isBought: 0,
+    });
     db.deleteTripItem(line.id);
     renderListsResponse(res, line.trip_id);
   });
@@ -247,6 +276,45 @@ export function tripsRouter(db) {
     const q = blankToNull(req.query.q);
     const items = q ? db.searchItems(q, 8) : [];
     res.render('partials/suggest', { items });
+  });
+
+  // GET /trips/:id/explain — optional narrative summary (M5, docs/06).
+  // 404s unless ENABLE_LLM=true and a key is set, so the feature simply does
+  // not exist by default rather than failing loudly.
+  router.get('/trips/:id/explain', async (req, res) => {
+    const trip = db.getTrip(Number(req.params.id));
+    if (!trip) {
+      res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
+      return;
+    }
+    if (!llmEnabled()) {
+      res.status(404).render('partials/error', {
+        status: 404,
+        message: 'Explanations are switched off (ENABLE_LLM).',
+      });
+      return;
+    }
+
+    const factSheet = buildFactSheet({
+      trip,
+      budget: db.budgetForTrip(trip.id),
+      buckets: buildBuckets(trip.id),
+      cadence: cadence(db),
+      comparison: compareBasket(db, trip.id),
+      formatCents,
+    });
+
+    try {
+      const { text, model } = await requestExplanation(factSheet);
+      res.render('partials/explain', { text, model, error: null, trip });
+    } catch (err) {
+      res.status(502).render('partials/explain', {
+        text: null,
+        model: null,
+        error: err.message,
+        trip,
+      });
+    }
   });
 
   // GET /trips/:id/insights/{regulars,new,forgotten} — one bucket as a partial
