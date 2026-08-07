@@ -78,20 +78,23 @@ docs before automating on it).
 
 - Two `web` services (`ghrub` on `main`, `ghrub-staging` on `staging`), Docker
   runtime, health check `/healthz`, `autoDeploy: false`.
-- A **disk** mounted at `/data` for `ghrub.db` (SQLite persistence) — needs the
-  `starter` plan, same paid tier UT already uses.
-- Env: `NODE_ENV=production`, `DATABASE_PATH=/data/ghrub.db`, `PORT` (Render
-  provides), `ENABLE_LLM=false`.
-- Free-tier alternative: swap each `disk:` for a `postgresql` service via
-  `fromDatabase` (exactly like UT), set `DATABASE_URL`, and switch `repo.js` to
-  pg (see `05-agent-runbook.md`).
+- **No disk, `plan: free`.** Storage is Neon Postgres, so the services are
+  stateless and need no paid instance type.
+- Env: `NODE_ENV=production`, `DATABASE_URL` (Neon, `sync: false` so Render
+  prompts for it and it never lands in git), `PORT` (Render provides),
+  `ENABLE_LLM=false`.
+- **Keep `region: ohio`** — it matches the Neon project's `us-east-2`. A page
+  render makes several queries; moving the service to another continent adds
+  that round trip to each one.
+- Point staging at a **separate Neon branch**, or its deploys overwrite the
+  real grocery history.
 
 ## Environment variables
 
 | Var | Where | Purpose |
 |-----|-------|---------|
 | `PORT` | Render-provided | server port |
-| `DATABASE_PATH` | render.yaml | SQLite file path (`/data/ghrub.db`) |
+| `DATABASE_URL` | Render dashboard (`sync: false`) | Neon Postgres connection string; keep `?sslmode=require` |
 | `NODE_ENV` | render.yaml | `production` |
 | `ENABLE_LLM` | render.yaml | `false` in MVP; gates M5 LLM feature |
 | `ANTHROPIC_API_KEY` | secret (only if `ENABLE_LLM=true`) | latest Claude model |
@@ -102,7 +105,7 @@ docs before automating on it).
 ## Local dev
 ```bash
 npm install
-npm run seed      # build + seed a local ghrub.db from docs/seed
+npm run seed      # seed the DATABASE_URL database from docs/seed
 npm run dev       # http://localhost:3000
 npm test
 ```

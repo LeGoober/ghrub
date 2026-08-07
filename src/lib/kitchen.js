@@ -18,23 +18,29 @@ export const MEAL_SLOTS = ['breakfast', 'lunch', 'lunch2', 'dinner', 'dessert'];
  *
  * @returns {{ log: object, decremented: Array<{itemId:number,itemName:string,qty:number,remaining:number}> }}
  */
-export function logMealEaten(db, { recipeId = null, freeText = null, eatenDate = null } = {}) {
-  const recipe = recipeId ? db.getRecipe(recipeId) : null;
-  const log = db.logMeal({ recipeId: recipe ? recipe.id : null, freeText, eatenDate });
+export async function logMealEaten(
+  db,
+  { recipeId = null, freeText = null, eatenDate = null } = {}
+) {
+  const recipe = recipeId ? await db.getRecipe(recipeId) : null;
+  const log = await db.logMeal({ recipeId: recipe ? recipe.id : null, freeText, eatenDate });
 
   // Free-text meals are recorded but cannot move stock — ghrub does not know
   // what "leftovers" was made of.
   if (!recipe) return { log, recipe: null, decremented: [] };
 
-  const decremented = recipe.ingredients.map((ingredient) => {
-    const row = db.adjustInventory(ingredient.item_id, -ingredient.qty);
-    return {
+  // Sequential, not Promise.all: two ingredients sharing an item must apply
+  // their decrements in order, or the second read-modify-write clobbers the first.
+  const decremented = [];
+  for (const ingredient of recipe.ingredients) {
+    const row = await db.adjustInventory(ingredient.item_id, -ingredient.qty);
+    decremented.push({
       itemId: ingredient.item_id,
       itemName: ingredient.item_name,
       qty: ingredient.qty,
       remaining: row.qty_on_hand,
-    };
-  });
+    });
+  }
 
   return { log, recipe, decremented };
 }
@@ -55,10 +61,9 @@ export function applyBoughtToInventory(db, { itemId, qty = 1, wasBought, isBough
  * Items at or below their low-water mark, shaped like the other habit buckets
  * so the trip workspace can render them with the same partial.
  */
-export function lowStockSuggestions(db, tripId) {
-  const onList = new Set(tripId ? db.itemIdsOnTrip(tripId) : []);
-  return db
-    .lowStockItems()
+export async function lowStockSuggestions(db, tripId) {
+  const onList = new Set(tripId ? await db.itemIdsOnTrip(tripId) : []);
+  return (await db.lowStockItems())
     .filter((row) => !onList.has(row.item_id))
     .map((row) => ({
       item_id: row.item_id,
@@ -99,9 +104,9 @@ export function planDays(trip, { max = 21 } = {}) {
 }
 
 /** Index the stored cells as `${day}|${slot}` for O(1) lookup while rendering. */
-export function planGrid(db, trip) {
+export async function planGrid(db, trip) {
   const cells = new Map();
-  for (const cell of db.getMealPlan(trip.id)) {
+  for (const cell of await db.getMealPlan(trip.id)) {
     cells.set(`${cell.day}|${cell.slot}`, cell);
   }
   return { days: planDays(trip), slots: MEAL_SLOTS, cells };

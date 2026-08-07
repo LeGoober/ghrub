@@ -18,6 +18,9 @@ export default [
         fetch: 'readonly',
         AbortSignal: 'readonly',
         URL: 'readonly',
+        // Used by the PGlite test-template cache in src/db/repo.js.
+        Buffer: 'readonly',
+        File: 'readonly',
       },
     },
     rules: {

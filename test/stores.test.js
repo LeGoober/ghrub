@@ -13,12 +13,12 @@ describe('store prices + compare routes (M3)', () => {
   let trip;
   let stores;
 
-  beforeEach(() => {
-    db = createDatabase(':memory:');
-    runSeed(db);
-    app = createApp(db);
-    stores = db.listStores();
-    trip = db.createTrip({ name: 'Compare shop' });
+  beforeEach(async () => {
+    db = await createDatabase(':memory:');
+    await runSeed(db);
+    app = await createApp(db);
+    stores = await db.listStores();
+    trip = await db.createTrip({ name: 'Compare shop' });
   });
 
   it('serves the prices page with an entry form', async () => {
@@ -38,7 +38,7 @@ describe('store prices + compare routes (M3)', () => {
     expect(res.text).not.toContain('<html');
     expect(res.text).toContain('Rice');
     expect(res.text).toContain('R55.50');
-    expect(db.listStorePrices()[0].price_cents).toBe(5550); // integer cents
+    expect((await db.listStorePrices())[0].price_cents).toBe(5550); // integer cents
   });
 
   it('rejects an incomplete or negative price with a 4xx partial', async () => {
@@ -55,13 +55,13 @@ describe('store prices + compare routes (M3)', () => {
       .send({ item_name: 'Rice', store_id: String(stores[0].id), price: '-3' });
     expect(negative.status).toBe(400);
     expect(negative.text).toContain('cannot be negative');
-    expect(db.count('store_price')).toBe(0);
+    expect(await db.count('store_price')).toBe(0);
   });
 
   it('remembers the last price per store for an item', async () => {
-    const item = db.getOrCreateItem('Eggs', 'dairy_eggs');
-    db.upsertStorePrice(item.id, stores[0].id, 4000, '2026-01-01');
-    db.upsertStorePrice(item.id, stores[1].id, 4300, '2026-02-01');
+    const item = await db.getOrCreateItem('Eggs', 'dairy_eggs');
+    await db.upsertStorePrice(item.id, stores[0].id, 4000, '2026-01-01');
+    await db.upsertStorePrice(item.id, stores[1].id, 4300, '2026-02-01');
 
     const res = await request(app).get('/stores/prices').query({ item: 'Eggs' });
     expect(res.status).toBe(200);
@@ -78,12 +78,12 @@ describe('store prices + compare routes (M3)', () => {
   });
 
   it('compares a basket and highlights the cheapest store', async () => {
-    const eggs = db.addTripItem(trip.id, { itemName: 'Eggs', categoryKey: 'dairy_eggs' });
-    const milk = db.addTripItem(trip.id, { itemName: 'Milk', categoryKey: 'dairy_eggs' });
-    db.upsertStorePrice(eggs.item_id, stores[0].id, 4000);
-    db.upsertStorePrice(eggs.item_id, stores[1].id, 4500);
-    db.upsertStorePrice(milk.item_id, stores[0].id, 2000);
-    db.upsertStorePrice(milk.item_id, stores[1].id, 1900);
+    const eggs = await db.addTripItem(trip.id, { itemName: 'Eggs', categoryKey: 'dairy_eggs' });
+    const milk = await db.addTripItem(trip.id, { itemName: 'Milk', categoryKey: 'dairy_eggs' });
+    await db.upsertStorePrice(eggs.item_id, stores[0].id, 4000);
+    await db.upsertStorePrice(eggs.item_id, stores[1].id, 4500);
+    await db.upsertStorePrice(milk.item_id, stores[0].id, 2000);
+    await db.upsertStorePrice(milk.item_id, stores[1].id, 1900);
 
     const res = await request(app).get(`/trips/${trip.id}/compare`);
     expect(res.status).toBe(200);
@@ -95,16 +95,16 @@ describe('store prices + compare routes (M3)', () => {
   });
 
   it('shows the empty state when the basket has no prices', async () => {
-    db.addTripItem(trip.id, { itemName: 'Eggs', categoryKey: 'dairy_eggs' });
+    await db.addTripItem(trip.id, { itemName: 'Eggs', categoryKey: 'dairy_eggs' });
     const res = await request(app).get(`/trips/${trip.id}/compare`);
     expect(res.status).toBe(200);
     expect(res.text).toContain('No prices on file');
   });
 
   it('flags unpriced lines in the comparison rather than hiding them', async () => {
-    const eggs = db.addTripItem(trip.id, { itemName: 'Eggs', categoryKey: 'dairy_eggs' });
-    db.addTripItem(trip.id, { itemName: 'Caviar', categoryKey: 'pantry' });
-    db.upsertStorePrice(eggs.item_id, stores[0].id, 4000);
+    const eggs = await db.addTripItem(trip.id, { itemName: 'Eggs', categoryKey: 'dairy_eggs' });
+    await db.addTripItem(trip.id, { itemName: 'Caviar', categoryKey: 'pantry' });
+    await db.upsertStorePrice(eggs.item_id, stores[0].id, 4000);
 
     const res = await request(app).get(`/trips/${trip.id}/compare`);
     expect(res.text).toContain('1 unpriced');

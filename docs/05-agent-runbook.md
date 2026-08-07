@@ -32,24 +32,30 @@ Then run built-in `/code-review` + verify before marking the PR ready
 
 ## Hard rules
 - **Extend the pattern, don't sprawl:** route → repository (`repo.js`) →
-  service/insights → EJS view. No ORM. No new dependency unless Express +
-  better-sqlite3 genuinely can't do it — justify it in the PR if so.
+  service/insights → EJS view. No ORM. No new dependency unless Express + `pg`
+  genuinely can't do it — justify it in the PR if so.
 - **Money = integer cents.** Never store floats for money.
-- **All DB access through `repo.js`.** Keeps the Postgres swap contained.
+- **All DB access through `repo.js`.** This is what made the SQLite→Postgres
+  migration a contained change; keep it that way.
+- **Every repo method is async.** `pg` is promise-based, so route handlers are
+  async too and must be wrapped in `wrap()` (`src/routes/wrap.js`) — Express 4
+  ignores rejected promises and the request would hang.
 - **Every mutation returns an HTMX partial**, not a full page (see `06`).
 - **Idempotent seed.** Re-running `npm run seed` must not duplicate rows.
 - **Secrets never in code.** Read from `process.env`.
 
-## If you switch to free-tier Postgres (instead of SQLite on a disk)
-Contained change:
-1. `npm i pg`, remove `better-sqlite3`.
-2. In `repo.js`, replace the sqlite handle with a `pg.Pool` using
-   `process.env.DATABASE_URL`; keep the same exported function names.
-3. Port `schema.sql` types: `INTEGER PRIMARY KEY` → `SERIAL PRIMARY KEY`,
-   `datetime('now')` → `now()`, `date('now')` → `current_date`.
-4. Remove the `disk:` block from `render.yaml`; add `DATABASE_URL` from the
-   Render Postgres instance.
-Everything above `repo.js` stays untouched.
+## Working on the data layer
+`repo.js` talks to a driver that both `pg.Pool` (Neon) and PGlite (tests)
+satisfy, so `createDatabase(':memory:')` gives a test a throwaway Postgres.
+Things that bite when adding a query:
+- **Cast aggregates to `::int`.** Postgres returns `COUNT`/`SUM` as bigint,
+  which `pg` hands back as a *string* — so `sum + row.total` silently
+  concatenates digits instead of adding cents.
+- **`IS DISTINCT FROM`, not `IS NOT`**, for null-safe comparison.
+- **Item names are unique case-insensitively** via a `lower(name)` index;
+  upserts infer it with `ON CONFLICT (lower(name))`.
+- Editing `schema.sql` invalidates the cached PGlite test template
+  automatically (it is keyed by a hash of the file).
 
 ## Definition of Done gate (what Claude Code checks per PR)
 - All milestone deliverables present; DoD behaviour demonstrable.

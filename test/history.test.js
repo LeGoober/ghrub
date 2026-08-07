@@ -9,11 +9,11 @@ describe('habit buckets + /history (M2 routes)', () => {
   let app;
   let trip;
 
-  beforeEach(() => {
-    db = createDatabase(':memory:');
-    runSeed(db);
-    app = createApp(db);
-    trip = db.createTrip({ name: 'Next shop', budget_cents: 50000 });
+  beforeEach(async () => {
+    db = await createDatabase(':memory:');
+    await runSeed(db);
+    app = await createApp(db);
+    trip = await db.createTrip({ name: 'Next shop', budget_cents: 50000 });
   });
 
   it('shows the three habit buckets on a fresh trip workspace', async () => {
@@ -48,12 +48,12 @@ describe('habit buckets + /history (M2 routes)', () => {
   });
 
   it('adds every missing regular in one tap and refreshes the bar and buckets', async () => {
-    expect(db.getTripItems(trip.id)).toHaveLength(0);
+    expect(await db.getTripItems(trip.id)).toHaveLength(0);
 
     const res = await request(app).post(`/trips/${trip.id}/insights/add-regulars`);
 
     expect(res.status).toBe(200);
-    expect(db.getTripItems(trip.id).length).toBeGreaterThanOrEqual(9);
+    expect((await db.getTripItems(trip.id)).length).toBeGreaterThanOrEqual(9);
     expect(res.text).toContain('hx-swap-oob="true"');
     expect(res.text).toContain('id="budget-bar"');
     expect(res.text).toContain('id="insight-buckets"');
@@ -63,9 +63,9 @@ describe('habit buckets + /history (M2 routes)', () => {
 
   it('is idempotent — adding all regulars twice does not duplicate lines', async () => {
     await request(app).post(`/trips/${trip.id}/insights/add-regulars`);
-    const after = db.getTripItems(trip.id).length;
+    const after = (await db.getTripItems(trip.id)).length;
     await request(app).post(`/trips/${trip.id}/insights/add-regulars`);
-    expect(db.getTripItems(trip.id)).toHaveLength(after);
+    expect(await db.getTripItems(trip.id)).toHaveLength(after);
   });
 
   it('adds a single suggestion and drops it from the bucket', async () => {
@@ -75,7 +75,7 @@ describe('habit buckets + /history (M2 routes)', () => {
       .send({ item_name: 'Chicken breasts', category_key: 'meat_seafood' });
 
     expect(res.status).toBe(200);
-    expect(db.getTripItems(trip.id).map((l) => l.item_name)).toContain('Chicken breasts');
+    expect((await db.getTripItems(trip.id)).map((l) => l.item_name)).toContain('Chicken breasts');
 
     const bucket = await request(app).get(`/trips/${trip.id}/insights/forgotten`);
     expect(bucket.text).not.toContain('Chicken breasts');
@@ -98,7 +98,7 @@ describe('habit buckets + /history (M2 routes)', () => {
   });
 
   it('renders an empty history rather than dividing by zero', async () => {
-    const empty = createApp(createDatabase(':memory:'));
+    const empty = await createApp(await createDatabase(':memory:'));
     const res = await request(empty).get('/history');
     expect(res.status).toBe(200);
     expect(res.text).toContain('No trips yet');

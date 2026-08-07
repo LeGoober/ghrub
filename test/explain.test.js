@@ -29,7 +29,7 @@ const ENABLED = { ENABLE_LLM: 'true', ANTHROPIC_API_KEY: 'sk-ant-test' };
 
 describe('optional LLM explanation (M5)', () => {
   describe('the flag', () => {
-    it('is off unless BOTH the flag and a key are present', () => {
+    it('is off unless BOTH the flag and a key are present', async () => {
       expect(llmEnabled({})).toBe(false);
       expect(llmEnabled({ ENABLE_LLM: 'false', ANTHROPIC_API_KEY: 'k' })).toBe(false);
       // The flag alone would fail at request time — treat it as unavailable.
@@ -38,7 +38,7 @@ describe('optional LLM explanation (M5)', () => {
       expect(llmEnabled(ENABLED)).toBe(true);
     });
 
-    it('accepts any casing of true', () => {
+    it('accepts any casing of true', async () => {
       expect(llmEnabled({ ENABLE_LLM: 'TRUE', ANTHROPIC_API_KEY: 'k' })).toBe(true);
     });
 
@@ -55,22 +55,26 @@ describe('optional LLM explanation (M5)', () => {
     let db;
     let trip;
 
-    beforeEach(() => {
-      db = createDatabase(':memory:');
-      runSeed(db);
-      trip = db.createTrip({
+    beforeEach(async () => {
+      db = await createDatabase(':memory:');
+      await runSeed(db);
+      trip = await db.createTrip({
         name: 'Bambezela Spezial V5',
         start_date: '2026-08-10',
         end_date: '2026-08-20',
         budget_cents: 50000,
       });
-      db.addTripItem(trip.id, { itemName: 'Eggs', categoryKey: 'dairy_eggs', estCents: 4000 });
+      await db.addTripItem(trip.id, {
+        itemName: 'Eggs',
+        categoryKey: 'dairy_eggs',
+        estCents: 4000,
+      });
     });
 
-    const sheet = () =>
+    const sheet = async () =>
       buildFactSheet({
-        trip: db.getTrip(trip.id),
-        budget: db.budgetForTrip(trip.id),
+        trip: await db.getTrip(trip.id),
+        budget: await db.budgetForTrip(trip.id),
         buckets: [{ key: 'regulars', title: 'Your regulars', rows: [{ name: 'Oats' }] }],
         cadence: {
           medianGapDays: 23,
@@ -81,8 +85,8 @@ describe('optional LLM explanation (M5)', () => {
         formatCents,
       });
 
-    it('carries the numbers the model is meant to talk about', () => {
-      const text = sheet();
+    it('carries the numbers the model is meant to talk about', async () => {
+      const text = await sheet();
       expect(text).toContain('Bambezela Spezial V5');
       expect(text).toContain('R500.00'); // the budget
       expect(text).toContain('R40.00'); // the running total
@@ -90,11 +94,11 @@ describe('optional LLM explanation (M5)', () => {
       expect(text).toContain('about every 23 days');
     });
 
-    it('says a budget is absent rather than inventing one', () => {
-      const noBudget = db.createTrip({ name: 'No budget' });
+    it('says a budget is absent rather than inventing one', async () => {
+      const noBudget = await db.createTrip({ name: 'No budget' });
       const text = buildFactSheet({
-        trip: db.getTrip(noBudget.id),
-        budget: db.budgetForTrip(noBudget.id),
+        trip: await db.getTrip(noBudget.id),
+        budget: await db.budgetForTrip(noBudget.id),
         buckets: [],
         cadence: { medianGapDays: null },
         comparison: null,
@@ -105,10 +109,10 @@ describe('optional LLM explanation (M5)', () => {
       expect(text).not.toContain('NaN');
     });
 
-    it('omits empty buckets instead of emitting blank lines', () => {
+    it('omits empty buckets instead of emitting blank lines', async () => {
       const text = buildFactSheet({
-        trip: db.getTrip(trip.id),
-        budget: db.budgetForTrip(trip.id),
+        trip: await db.getTrip(trip.id),
+        budget: await db.budgetForTrip(trip.id),
         buckets: [{ key: 'new', title: 'New this list', rows: [] }],
         cadence: { medianGapDays: null },
         comparison: null,
@@ -204,11 +208,11 @@ describe('optional LLM explanation (M5)', () => {
     let app;
     let trip;
 
-    beforeEach(() => {
-      db = createDatabase(':memory:');
-      runSeed(db);
-      app = createApp(db);
-      trip = db.createTrip({ name: 'Next shop', budget_cents: 50000 });
+    beforeEach(async () => {
+      db = await createDatabase(':memory:');
+      await runSeed(db);
+      app = await createApp(db);
+      trip = await db.createTrip({ name: 'Next shop', budget_cents: 50000 });
     });
 
     it('does not exist when the flag is off (the default)', async () => {
