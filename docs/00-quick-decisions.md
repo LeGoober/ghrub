@@ -10,7 +10,7 @@ with the one honest trade-off called out at the end.
 | **Frontend** | **HTMX** + a little **Alpine.js**, server-rendered HTML | You asked for HTMX. No SPA build step, no client framework. Server sends HTML fragments; HTMX swaps them. Alpine only for tiny local UI state (toggles). |
 | **Templating** | **EJS** | Boring, ubiquitous, zero surprises for a coding agent. Renders the HTMX partials. |
 | **Backend** | **Node.js 20 + Express** | You said "JS stack." Express is the most documented, hardest-to-get-wrong Node server — best odds a free agent finishes it. Light: ~1 dependency. |
-| **Database** | **SQLite** via `better-sqlite3` | The JS-world equivalent of the embedded **H2** you mentioned: one file, in-process, zero server. Synchronous API = simplest possible code. |
+| **Database** | **Postgres** via `pg`, hosted on **Neon** | Was SQLite via `better-sqlite3`; migrated to Neon so the app needs no persistent disk and can run on Render's free plan. Tests use **PGlite** (Postgres as WASM, in-process) so `npm test` still needs no server. |
 | **Migrations/seed** | Plain SQL files + a tiny runner | No ORM. Schema in `src/db/schema.sql`, seed from `docs/seed/grocery-history.json`. |
 | **Tests** | **Vitest** | Fast, ESM-native, trivial config. |
 | **Lint/format** | **ESLint + Prettier** | CI gate. |
@@ -27,17 +27,18 @@ with the one honest trade-off called out at the end.
   long-lived SQLite file + a Docker image. Render Web Service + a persistent
   disk (or Postgres) is the cleaner path for stateful history. **Render it is.**
 
-## The one real trade-off: where SQLite lives on Render
+## Where the data lives (resolved)
 
-SQLite needs a filesystem that survives restarts. On Render:
+This used to be the one open trade-off: SQLite needs a filesystem that survives
+restarts, and on Render that means a persistent disk, which requires a paid
+instance type. **Resolved by taking the fallback:** storage moved to a free
+**Neon** Postgres, so the web service holds no state at all and runs on the
+free plan. All DB access sat behind `src/db/repo.js`, which is exactly what
+kept the swap contained rather than a rewrite.
 
-- **Recommended for launch:** Render **Web Service + a small persistent Disk**
-  mounted at `/data`; the DB file lives at `/data/ghrub.db`. Survives deploys
-  and restarts. (A persistent disk requires a paid instance type — verify
-  current Render pricing/terms when you attach it.)
-- **Stay-fully-free fallback:** swap the data layer to a free hosted
-  **Postgres** (Render Postgres, Neon, or Supabase). The code isolates all DB
-  access behind `src/db/repo.js`, so this is a contained swap, not a rewrite.
+One constraint this introduces: keep the Render region matched to the Neon
+region (both `ohio` / `us-east-2`). A page render issues several queries, and a
+cross-continent hop is paid on every one of them.
 
 `render.yaml` ships configured for the disk path. If you choose free Postgres,
 M0's runbook note tells FreeBuff exactly what to change.
