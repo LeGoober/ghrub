@@ -1,6 +1,7 @@
 # 02 — Data model
 
-SQLite. All access behind `src/db/repo.js` (so a Postgres swap stays contained).
+Postgres (Neon in production, PGlite in tests). All access behind
+`src/db/repo.js` — the rule that kept the SQLite→Postgres migration contained.
 Money stored as **integer cents** (ZAR × 100) to avoid float drift; render as
 `R{value/100}`.
 

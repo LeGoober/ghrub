@@ -1,9 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../src/server.js';
 
 describe('M0 scaffold', () => {
-  const app = createApp();
+  // createApp connects to a database now, so the app is built in a hook
+  // rather than inline in the describe body.
+  let app;
+  beforeAll(async () => {
+    app = await createApp();
+  });
 
   it('GET /healthz returns 200 ok', async () => {
     const res = await request(app).get('/healthz');

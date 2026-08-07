@@ -33,10 +33,13 @@ export const FORGOTTEN_MIN_TRIPS = 3;
  * with itself. Items already on the list come back too, flagged
  * `already_on_list`, so the UI can grey them instead of silently dropping them.
  */
-export function regulars(db, tripId = null, { threshold = REGULAR_THRESHOLD, limit = 20 } = {}) {
-  const onList = new Set(tripId ? db.itemIdsOnTrip(tripId) : []);
-  return db
-    .itemFrequency(tripId)
+export async function regulars(
+  db,
+  tripId = null,
+  { threshold = REGULAR_THRESHOLD, limit = 20 } = {}
+) {
+  const onList = new Set(tripId ? await db.itemIdsOnTrip(tripId) : []);
+  return (await db.itemFrequency(tripId))
     .filter((row) => row.total_trips > 0 && row.trips_listed / row.total_trips >= threshold)
     .slice(0, limit)
     .map((row) => ({
@@ -59,17 +62,16 @@ export function newThisList(db, tripId) {
  * is the genuinely useful set — frequent enough to matter, not frequent enough
  * to be a regular, and not on the list.
  */
-export function oftenForgotten(
+export async function oftenForgotten(
   db,
   tripId,
   { minTrips = FORGOTTEN_MIN_TRIPS, limit = 10, threshold = REGULAR_THRESHOLD } = {}
 ) {
-  const onList = new Set(db.itemIdsOnTrip(tripId));
+  const onList = new Set(await db.itemIdsOnTrip(tripId));
   const isRegular = new Set(
-    regulars(db, tripId, { threshold, limit: Infinity }).map((r) => r.item_id)
+    (await regulars(db, tripId, { threshold, limit: Infinity })).map((r) => r.item_id)
   );
-  return db
-    .itemFrequency(tripId)
+  return (await db.itemFrequency(tripId))
     .filter(
       (row) =>
         row.trips_listed >= minTrips && !onList.has(row.item_id) && !isRegular.has(row.item_id)
@@ -83,9 +85,8 @@ export function oftenForgotten(
  * Median, not mean: the seed history has a 137-day hole between July and
  * December, which drags a mean to ~36 days when the habit is really ~19.
  */
-export function cadence(db) {
-  const stamps = db
-    .tripSpendSummaries()
+export async function cadence(db) {
+  const stamps = (await db.tripSpendSummaries())
     .map((t) => t.effective_date)
     .filter(Boolean)
     .map((d) => Date.parse(`${String(d).slice(0, 10)}T00:00:00Z`))
@@ -117,8 +118,8 @@ export function cadence(db) {
 }
 
 /** Spend per trip and per category — the numbers behind the /history page. */
-export function spendHistory(db) {
-  const trips = db.tripSpendSummaries();
+export async function spendHistory(db) {
+  const trips = await db.tripSpendSummaries();
   const withSpend = trips.filter((t) => t.total_cents > 0);
   const totalCents = withSpend.reduce((sum, t) => sum + t.total_cents, 0);
   const budgeted = trips.filter((t) => t.budget_cents != null && t.total_cents > 0);
@@ -130,17 +131,17 @@ export function spendHistory(db) {
     totalCents,
     budgetedCount: budgeted.length,
     overBudgetCount: budgeted.filter((t) => t.total_cents > t.budget_cents).length,
-    byCategory: db.categorySpendAverages(),
+    byCategory: await db.categorySpendAverages(),
   };
 }
 
 /** The three suggestion buckets shown above a trip's list. */
-export function insightsForTrip(db, tripId) {
+export async function insightsForTrip(db, tripId) {
   return {
-    regulars: regulars(db, tripId),
-    newThisList: newThisList(db, tripId),
-    oftenForgotten: oftenForgotten(db, tripId),
-    cadence: cadence(db),
+    regulars: await regulars(db, tripId),
+    newThisList: await newThisList(db, tripId),
+    oftenForgotten: await oftenForgotten(db, tripId),
+    cadence: await cadence(db),
   };
 }
 
