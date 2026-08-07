@@ -31,9 +31,9 @@ function lineCost(priceCents, qty) {
  *   splitShop: object|null
  * }}
  */
-export function compareBasket(db, tripId) {
-  const lines = db.getTripItems(tripId);
-  const priceRows = db.latestPricesForTrip(tripId);
+export async function compareBasket(db, tripId) {
+  const lines = await db.getTripItems(tripId);
+  const priceRows = await db.latestPricesForTrip(tripId);
 
   // line id -> store id -> { priceCents, seenDate, costCents }
   const byLine = new Map();

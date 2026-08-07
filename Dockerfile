@@ -1,16 +1,15 @@
-# ghrub — multi-stage build on node:20-slim (Debian/glibc).
+# ghrub — multi-stage build on node:20-slim.
 #
-# NOTE: base is node:20-slim, NOT alpine. better-sqlite3 is a native addon and
-# segfaults (exit 139) at runtime on alpine/musl even when compiled there; slim
-# (glibc) is the reliable base for better-sqlite3. Still a small image.
-# The deps stage installs build tools (python3 make g++) so npm compiles the addon.
+# The Neon migration replaced better-sqlite3 with `pg`, which is pure
+# JavaScript. That removes the whole reason this image used to install
+# python3/make/g++ and the reason it had to stay on glibc: there is no native
+# addon left to compile, and nothing that can segfault on musl at runtime.
+# Kept on slim rather than moved to alpine because the difference is now small
+# and slim is the better-tested base.
 
 # ---- deps ----
 FROM node:20-slim AS deps
 WORKDIR /app
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends python3 make g++ \
-  && rm -rf /var/lib/apt/lists/*
 COPY package*.json ./
 RUN npm ci --omit=dev
 
@@ -29,7 +28,8 @@ COPY docs/seed/grocery-history.json ./docs/seed/grocery-history.json
 ENV PORT=3000
 EXPOSE 3000
 
-# Render mounts the persistent disk at /data (see render.yaml). SQLite DB lives there.
+# State lives in Neon (DATABASE_URL), so this image is entirely stateless — no
+# volume, no disk, safe to replace at any time.
 # Healthcheck uses Node's global fetch (slim has no wget/curl) and hits /healthz.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s \
   CMD node -e "fetch('http://localhost:'+(process.env.PORT||3000)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"

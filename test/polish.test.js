@@ -9,10 +9,10 @@ describe('PWA, empty and error states (M5)', () => {
   let db;
   let app;
 
-  beforeEach(() => {
-    db = createDatabase(':memory:');
-    runSeed(db);
-    app = createApp(db);
+  beforeEach(async () => {
+    db = await createDatabase(':memory:');
+    await runSeed(db);
+    app = await createApp(db);
   });
 
   describe('installability', () => {
@@ -53,7 +53,7 @@ describe('PWA, empty and error states (M5)', () => {
       expect(res.text).toContain('id="main"');
     });
 
-    it('never caches a mutation or someone else’s list', () => {
+    it('never caches a mutation or someone else’s list', async () => {
       const sw = readFileSync('public/sw.js', 'utf8');
       // Serving a stale list mid-shop is worse than an honest offline page.
       expect(sw).toContain("request.method !== 'GET'");
@@ -79,7 +79,7 @@ describe('PWA, empty and error states (M5)', () => {
 
   describe('empty states', () => {
     it('guides a brand-new user rather than showing a blank app', async () => {
-      const fresh = createApp(createDatabase(':memory:'));
+      const fresh = await createApp(await createDatabase(':memory:'));
 
       const home = await request(fresh).get('/');
       expect(home.text).toContain('No trips yet');
@@ -98,7 +98,7 @@ describe('PWA, empty and error states (M5)', () => {
     });
 
     it('tells a new trip what to do next instead of showing an empty list', async () => {
-      const trip = db.createTrip({ name: 'Empty shop' });
+      const trip = await db.createTrip({ name: 'Empty shop' });
       const res = await request(app).get(`/trips/${trip.id}`);
       expect(res.text).toContain('Nothing on the list yet');
 
@@ -121,7 +121,7 @@ describe('PWA, empty and error states (M5)', () => {
       expect(css).toMatch(/\.budget-bar\s*\{[^}]*position:\s*sticky/);
     });
 
-    it('ships a selected dark mode and honours reduced motion', () => {
+    it('ships a selected dark mode and honours reduced motion', async () => {
       const css = readFileSync('public/css/app.css', 'utf8');
       expect(css).toContain('prefers-color-scheme: dark');
       expect(css).toContain('prefers-reduced-motion: reduce');
@@ -130,7 +130,7 @@ describe('PWA, empty and error states (M5)', () => {
       expect(css).toContain('focus-visible');
     });
 
-    it('has no hardcoded white surface left to break dark mode', () => {
+    it('has no hardcoded white surface left to break dark mode', async () => {
       const css = readFileSync('public/css/app.css', 'utf8');
       const dark = css.slice(css.indexOf('prefers-color-scheme: dark'));
       const light = css.slice(0, css.indexOf('prefers-color-scheme: dark'));

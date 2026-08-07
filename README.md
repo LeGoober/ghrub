@@ -11,8 +11,8 @@ what you're **running low** on.
 **Full spec lives in [`docs/`](docs/README.md) — start there.**
 
 ## Stack (locked — see [docs/00](docs/00-quick-decisions.md))
-HTMX + Alpine · Node 20 + Express · EJS · SQLite (better-sqlite3, from M1) ·
-Docker on Render · GitHub Actions CI/CD.
+HTMX + Alpine · Node 20 + Express · EJS · Postgres on Neon (`pg`; SQLite until
+the Neon migration) · Docker on Render · GitHub Actions CI/CD.
 
 ## Quick start (M0 scaffold)
 ```bash

@@ -12,9 +12,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /**
  * Build the Express app. Exported so tests can mount it without binding a port.
  * DB access goes exclusively through the repository (docs/05 hard rule).
+ *
+ * Async since the Neon migration — connecting is now I/O, so the default
+ * throwaway database has to be awaited rather than constructed inline.
+ *
  * @param {object} [db] repository; defaults to a throwaway in-memory DB for tests.
  */
-export function createApp(db = createDatabase(':memory:')) {
+export async function createApp(db) {
+  const database = db ?? (await createDatabase(':memory:'));
   const app = express();
 
   app.use(express.urlencoded({ extended: true }));
@@ -35,10 +40,10 @@ export function createApp(db = createDatabase(':memory:')) {
     res.sendFile(path.join(publicDir, 'manifest.webmanifest'))
   );
 
-  app.use('/', historyRouter(db));
-  app.use('/', storesRouter(db));
-  app.use('/', kitchenRouter(db));
-  app.use('/', tripsRouter(db));
+  app.use('/', historyRouter(database));
+  app.use('/', storesRouter(database));
+  app.use('/', kitchenRouter(database));
+  app.use('/', tripsRouter(database));
 
   // Anything unmatched is a real 404 rather than Express's default HTML stub.
   app.use((_req, res) => {
@@ -66,9 +71,9 @@ export function createApp(db = createDatabase(':memory:')) {
 // Start only when run directly (not when imported by a test).
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 if (isMain) {
-  // Opens ./data/ghrub.db (or DATABASE_PATH) and migrates on boot if needed.
-  const db = createDatabase();
-  const app = createApp(db);
+  // Connects to DATABASE_URL (Neon in production) and migrates on boot if needed.
+  const db = await createDatabase();
+  const app = await createApp(db);
   const port = process.env.PORT || 3000;
   app.listen(port, () => {
     console.log(`ghrub listening on http://localhost:${port}`);

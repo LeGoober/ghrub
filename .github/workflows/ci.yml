@@ -17,6 +17,24 @@ permissions:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+
+    # The unit tests need no server — they run against PGlite in-process. This
+    # is here for the seed idempotency check below, which has to prove that a
+    # SECOND process importing into an EXISTING database changes nothing, and
+    # so needs storage that outlives one node invocation.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v5
 
@@ -41,6 +59,8 @@ jobs:
       # ran the seed ONCE, so a duplicating seed would have shipped green.
       # Import twice and require identical counts.
       - name: Seed smoke — import twice, prove idempotent
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
         run: |
           node scripts/seed.js | tee /tmp/seed-run-1.txt
           node scripts/seed.js | tee /tmp/seed-run-2.txt
@@ -54,6 +74,20 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     needs: build-test
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v5
 
@@ -62,12 +96,16 @@ jobs:
 
       # M1 shipped a better-sqlite3 SIGSEGV to Render on a fully green CI,
       # because `docker build` proves the image *compiles*, never that it RUNS.
-      # Boot the image and drive DB-backed routes — that is where the native
-      # addon actually loads, and where the segfault surfaced.
+      # The native addon is gone, but the lesson stands: boot the image and
+      # drive DB-backed routes, because that is where connecting, migrating and
+      # querying actually happen.
       - name: Container smoke test — boot, serve, survive
         run: |
-          docker run -d --name ghrub-smoke -p 3000:3000 \
-            -e DATABASE_PATH=/tmp/ghrub-smoke.db ghrub:ci
+          # --network host so the container reaches the postgres service on the
+          # runner's localhost; it also publishes 3000 directly, hence no -p.
+          docker run -d --name ghrub-smoke --network host \
+            -e DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres \
+            ghrub:ci
 
           ready=""
           for _ in $(seq 1 30); do
@@ -82,9 +120,10 @@ jobs:
           fi
 
           # /healthz is deliberately DB-free (it is Render's health check), so it
-          # sails straight past a broken database layer. These routes open SQLite.
+          # sails straight past a broken database layer. These routes query Postgres.
           curl -fsS http://localhost:3000/ >/dev/null
           curl -fsS http://localhost:3000/trips >/dev/null
+          curl -fsS http://localhost:3000/history >/dev/null
 
           running=$(docker inspect -f '{{.State.Running}}' ghrub-smoke)
           code=$(docker inspect -f '{{.State.ExitCode}}' ghrub-smoke)
