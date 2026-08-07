@@ -1,22 +1,33 @@
 # ===============================================================
 # Render Blueprint — ghrub
 # ===============================================================
-# Mirrors the Underground Terminal setup: multi-service blueprint, one web
-# service per branch, Docker runtime, deploys driven by the GitHub Actions
-# `render-deploy-action` using your RENDER_API_KEY (autoDeploy off so CI gates
-# the deploy).
+# Multi-service blueprint, one web service per branch, Docker runtime, deploys
+# driven by the GitHub Actions `render-deploy-action` using your RENDER_API_KEY
+# (autoDeploy off so CI gates the deploy).
+#
+# Storage is Neon Postgres, not a Render disk. That is what lets these services
+# run on the free plan: a persistent disk requires a paid instance type, while
+# Neon holds the data outside Render entirely, so a free instance spinning down
+# or being replaced costs nothing. It also means the two services can share or
+# split data by pointing at different Neon branches.
+#
+# REGION: keep this matched to your Neon region (us-east-2 = Ohio). The app
+# makes several queries per page render, so putting the web service on another
+# continent adds that round trip to every one of them.
 #
 # One-time setup: Render Dashboard -> New -> Blueprint -> pick the ghrub repo ->
-# it reads this file and creates both services. Copy each service's ID (srv-...)
-# into GitHub secrets (see docs/04-devops-cicd.md).
+# it reads this file and creates both services. Then set DATABASE_URL on each
+# service (it is sync: false, so Render prompts for it and never stores it in
+# git). Copy each service's ID (srv-...) into GitHub secrets (see
+# docs/04-devops-cicd.md).
 
 services:
   # ---- Production (main branch) ----
   - type: web
     name: ghrub
     env: docker
-    region: ohio # frankfurt is closer to ZA if you want lower latency — safe to change
-    plan: starter # required for a persistent disk (matches UT's starter plan)
+    region: ohio # matches the Neon project's us-east-2 — see REGION note above
+    plan: free
     branch: main
     dockerfilePath: ./Dockerfile
     autoDeploy: false # GitHub Actions triggers the deploy after CI passes
@@ -24,25 +35,24 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: DATABASE_PATH
-        value: /data/ghrub.db
+      - key: DATABASE_URL
+        sync: false # Neon connection string — set in the Render dashboard
       - key: ENABLE_LLM
         value: "false"
       - key: GHRUB_PASSPHRASE
         sync: false # set in the Render dashboard if you want a simple gate
       - key: ANTHROPIC_API_KEY
         sync: false # only needed when ENABLE_LLM=true (M5)
-    disk:
-      name: ghrub-data
-      mountPath: /data
-      sizeGB: 1
 
   # ---- Staging (staging branch) ----
+  # Point this at a *separate* Neon branch, or staging deploys will write over
+  # the real grocery history. Neon branches are copy-on-write and free to make:
+  # Neon Console -> Branches -> New branch from production.
   - type: web
     name: ghrub-staging
     env: docker
     region: ohio
-    plan: starter
+    plan: free
     branch: staging
     dockerfilePath: ./Dockerfile
     autoDeploy: false
@@ -50,21 +60,15 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: DATABASE_PATH
-        value: /data/ghrub.db
+      - key: DATABASE_URL
+        sync: false # a Neon *staging branch* connection string
       - key: ENABLE_LLM
         value: "false"
       - key: GHRUB_PASSPHRASE
         sync: false
-    disk:
-      name: ghrub-staging-data
-      mountPath: /data
-      sizeGB: 1
 
-# --- Free-tier alternative (no paid disk) ---
-# Swap SQLite-on-disk for a Render managed Postgres (like UT does with
-# `fromDatabase`): delete each `disk:` block, add a `- type: postgresql` service
-# per branch, and inject its connection string as DATABASE_URL:
-#   - key: DATABASE_URL
-#     fromDatabase: { name: ghrub-db, property: connectionString }
-# Then point src/db/repo.js at pg (see docs/05-agent-runbook.md).
+# --- Notes on the free plan ---
+# Free web services sleep after ~15 minutes idle and take a few seconds to wake
+# on the next request. The data is unaffected — it lives in Neon. If the wake
+# delay becomes annoying, `plan: starter` removes it without any other change,
+# because nothing here depends on local disk any more.
