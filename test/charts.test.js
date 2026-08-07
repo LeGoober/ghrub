@@ -11,7 +11,7 @@ const trip = (over) => ({
 });
 
 describe('charts (src/lib/charts.js)', () => {
-  it('keeps every mark inside the viewBox', () => {
+  it('keeps every mark inside the viewBox', async () => {
     const chart = spendPerTripChart([
       trip({ id: 1, total_cents: 30000, budget_cents: 50000 }),
       trip({ id: 2, total_cents: 90000, budget_cents: 50000, effective_date: '2026-02-01' }),
@@ -27,7 +27,7 @@ describe('charts (src/lib/charts.js)', () => {
     expect(chart.baseline).toBeLessThanOrEqual(chart.height);
   });
 
-  it('splits an over-budget column at the budget, with the gap between segments', () => {
+  it('splits an over-budget column at the budget, with the gap between segments', async () => {
     const chart = spendPerTripChart([trip({ total_cents: 90000, budget_cents: 50000 })]);
     const bar = chart.bars[0];
 
@@ -39,7 +39,7 @@ describe('charts (src/lib/charts.js)', () => {
     expect(bar.budgetY).toBeNull(); // the split IS the budget; no extra tick
   });
 
-  it('never draws a column shorter than the spend when the overshoot is a sliver', () => {
+  it('never draws a column shorter than the spend when the overshoot is a sliver', async () => {
     // 10c over a R500 budget: the overshoot scales to well under the 2px gap.
     const chart = spendPerTripChart([trip({ total_cents: 50010, budget_cents: 50000 })]);
     const bar = chart.bars[0];
@@ -52,7 +52,7 @@ describe('charts (src/lib/charts.js)', () => {
     expect(bar.label).toBe('over');
   });
 
-  it('marks the budget with a tick when a trip stayed under it', () => {
+  it('marks the budget with a tick when a trip stayed under it', async () => {
     const chart = spendPerTripChart([trip({ total_cents: 30000, budget_cents: 50000 })]);
     const bar = chart.bars[0];
 
@@ -63,32 +63,32 @@ describe('charts (src/lib/charts.js)', () => {
     expect(bar.budgetTickX2).toBeGreaterThan(bar.x + bar.w);
   });
 
-  it('treats spending exactly the budget as within it', () => {
+  it('treats spending exactly the budget as within it', async () => {
     const bar = spendPerTripChart([trip({ total_cents: 50000, budget_cents: 50000 })]).bars[0];
     expect(bar.isOver).toBe(false);
     expect(bar.segments.map((s) => s.kind)).toEqual(['within']);
   });
 
-  it('caps bar thickness so the band keeps its air', () => {
+  it('caps bar thickness so the band keeps its air', async () => {
     const chart = spendPerTripChart([trip({ total_cents: 1000, budget_cents: null })]);
     expect(chart.bars[0].w).toBeLessThanOrEqual(24);
   });
 
-  it('puts axis ticks on clean money boundaries starting at zero', () => {
+  it('puts axis ticks on clean money boundaries starting at zero', async () => {
     const chart = spendPerTripChart([trip({ total_cents: 93700, budget_cents: null })]);
     expect(chart.yTicks[0].label).toBe('R0.00');
     expect(chart.yTicks[0].y).toBe(chart.baseline);
     expect(chart.yTicks.at(-1).label).toMatch(/^R1 000\.00|R1 200\.00$/);
   });
 
-  it('rounds the data-end and leaves the baseline square', () => {
+  it('rounds the data-end and leaves the baseline square', async () => {
     const path = spendPerTripChart([trip({ total_cents: 50000, budget_cents: null })]).bars[0]
       .segments[0].path;
     expect(path).toContain('Q'); // rounded corners at the top
     expect(path.trim().endsWith('Z')).toBe(true);
   });
 
-  it('grows the category chart with its rows and labels every tip', () => {
+  it('grows the category chart with its rows and labels every tip', async () => {
     const rows = [
       {
         category_key: 'produce',
@@ -118,7 +118,7 @@ describe('charts (src/lib/charts.js)', () => {
     expect(chart.rows.every((r) => r.valueX + 60 <= chart.width)).toBe(true);
   });
 
-  it('reports empty rather than dividing by zero', () => {
+  it('reports empty rather than dividing by zero', async () => {
     expect(spendPerTripChart([]).empty).toBe(true);
     expect(spendPerTripChart([]).bars).toHaveLength(0);
     expect(categorySpendChart([]).empty).toBe(true);

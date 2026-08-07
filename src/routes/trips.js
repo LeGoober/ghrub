@@ -4,6 +4,7 @@ import { regulars, newThisList, oftenForgotten, cadence } from '../lib/insights.
 import { applyBoughtToInventory, lowStockSuggestions } from '../lib/kitchen.js';
 import { compareBasket } from '../lib/compare.js';
 import { llmEnabled, buildFactSheet, requestExplanation } from '../lib/explain.js';
+import { wrap } from './wrap.js';
 
 function blankToNull(value) {
   if (value === null || value === undefined) return null;
@@ -29,6 +30,9 @@ function groupItemsByCategory(items) {
 /**
  * All trip + list routes. Every mutation renders a partial (the list groups
  * and/or the trip header) plus an out-of-band budget bar — never a full reload.
+ *
+ * Handlers are async since the Neon migration, and every one is wrap()ed so a
+ * database error renders the 500 page instead of hanging the request.
  */
 export function tripsRouter(db) {
   const router = Router();
@@ -69,14 +73,20 @@ export function tripsRouter(db) {
     },
   ];
 
-  const buildBuckets = (tripId) => BUCKET_DEFS.map((def) => ({ ...def, rows: def.rows(tripId) }));
+  // The buckets are independent queries, so they resolve together rather than
+  // in series — four sequential Neon round trips would show on every render.
+  const buildBuckets = (tripId) =>
+    Promise.all(BUCKET_DEFS.map(async (def) => ({ ...def, rows: await def.rows(tripId) })));
 
-  const renderTripsList = (res, error) => {
-    const trips = db.listTrips().map((t) => ({ ...t, budget: db.budgetForTrip(t.id) }));
+  const renderTripsList = async (res, error) => {
+    const [rows, stores] = await Promise.all([db.listTrips(), db.listStores()]);
+    const trips = await Promise.all(
+      rows.map(async (t) => ({ ...t, budget: await db.budgetForTrip(t.id) }))
+    );
     res.status(error ? 400 : 200).render('trips/index', {
       title: 'Trips',
       trips,
-      stores: db.listStores(),
+      stores,
       error: error || null,
     });
   };
@@ -84,267 +94,322 @@ export function tripsRouter(db) {
   // Every list mutation also refreshes the habit buckets out-of-band: adding a
   // line changes what counts as new, forgotten or already-on-the-list, so a
   // stale bucket would keep offering an item you just added.
-  const renderListsResponse = (res, tripId) => {
-    const trip = db.getTrip(tripId);
-    const budget = db.budgetForTrip(tripId);
-    const groups = groupItemsByCategory(db.getTripItems(tripId));
+  const renderListsResponse = async (res, tripId) => {
+    const [trip, budget, items, buckets, cadenceInfo] = await Promise.all([
+      db.getTrip(tripId),
+      db.budgetForTrip(tripId),
+      db.getTripItems(tripId),
+      buildBuckets(tripId),
+      cadence(db),
+    ]);
     // Tells the lazily-loaded store comparison to re-price itself (M3). Cheaper
     // than shipping the whole comparison in every mutation response.
     res.set('HX-Trigger', 'ghrub:list-changed');
     res.render('partials/lists-response', {
       trip,
       budget,
-      groups,
-      buckets: buildBuckets(tripId),
-      cadence: cadence(db),
+      groups: groupItemsByCategory(items),
+      buckets,
+      cadence: cadenceInfo,
       formatCents,
     });
   };
 
-  const renderHeaderResponse = (res, trip) => {
-    const budget = db.budgetForTrip(trip.id);
-    res.render('partials/header-response', {
-      trip,
-      stores: db.listStores(),
-      budget,
-      formatCents,
-    });
+  const renderHeaderResponse = async (res, trip) => {
+    const [stores, budget] = await Promise.all([db.listStores(), db.budgetForTrip(trip.id)]);
+    res.render('partials/header-response', { trip, stores, budget, formatCents });
   };
 
   // GET / — dashboard: next/active trip + quick create
-  router.get('/', (req, res) => {
-    const trips = db.listTrips();
-    const active = trips.find((t) => t.status !== 'done') || trips[0] || null;
-    res.render('dashboard', { title: 'ghrub', active, stores: db.listStores() });
-  });
+  router.get(
+    '/',
+    wrap(async (req, res) => {
+      const [trips, stores] = await Promise.all([db.listTrips(), db.listStores()]);
+      const active = trips.find((t) => t.status !== 'done') || trips[0] || null;
+      res.render('dashboard', { title: 'ghrub', active, stores });
+    })
+  );
 
   // GET /trips — history list (full page)
-  router.get('/trips', (req, res) => {
-    renderTripsList(res);
-  });
+  router.get(
+    '/trips',
+    wrap(async (req, res) => {
+      await renderTripsList(res);
+    })
+  );
 
   // POST /trips — create; redirect to the workspace
-  router.post('/trips', (req, res) => {
-    const name = blankToNull(req.body.name);
-    if (!name) {
-      renderTripsList(res, 'Trip name is required.');
-      return;
-    }
-    const trip = db.createTrip({
-      name,
-      start_date: blankToNull(req.body.start_date),
-      end_date: blankToNull(req.body.end_date),
-      shop_date: blankToNull(req.body.shop_date),
-      budget_cents: toCents(req.body.budget),
-      target_store_id: req.body.target_store_id ? Number(req.body.target_store_id) : null,
-      notes: blankToNull(req.body.notes),
-    });
-    res.redirect(`/trips/${trip.id}`);
-  });
+  router.post(
+    '/trips',
+    wrap(async (req, res) => {
+      const name = blankToNull(req.body.name);
+      if (!name) {
+        await renderTripsList(res, 'Trip name is required.');
+        return;
+      }
+      const trip = await db.createTrip({
+        name,
+        start_date: blankToNull(req.body.start_date),
+        end_date: blankToNull(req.body.end_date),
+        shop_date: blankToNull(req.body.shop_date),
+        budget_cents: toCents(req.body.budget),
+        target_store_id: req.body.target_store_id ? Number(req.body.target_store_id) : null,
+        notes: blankToNull(req.body.notes),
+      });
+      res.redirect(`/trips/${trip.id}`);
+    })
+  );
 
   // GET /trips/:id — the trip workspace (full page)
-  router.get('/trips/:id', (req, res) => {
-    const trip = db.getTrip(Number(req.params.id));
-    if (!trip) {
-      res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
-      return;
-    }
-    const budget = db.budgetForTrip(trip.id);
-    const groups = groupItemsByCategory(db.getTripItems(trip.id));
-    res.render('trips/show', {
-      title: trip.name,
-      trip,
-      budget,
-      groups,
-      buckets: buildBuckets(trip.id),
-      cadence: cadence(db),
-      llm: llmEnabled(),
-      stores: db.listStores(),
-      categories: db.listCategories(),
-      formatCents,
-    });
-  });
-
-  // PATCH /trips/:id — update name/dates/budget/status -> header partial + OOB bar
-  router.patch('/trips/:id', (req, res) => {
-    const trip = db.getTrip(Number(req.params.id));
-    if (!trip) {
-      res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
-      return;
-    }
-    const fields = {};
-    const name = blankToNull(req.body.name);
-    if (name) fields.name = name;
-    if ('start_date' in req.body) fields.start_date = blankToNull(req.body.start_date);
-    if ('end_date' in req.body) fields.end_date = blankToNull(req.body.end_date);
-    if ('shop_date' in req.body) fields.shop_date = blankToNull(req.body.shop_date);
-    if ('budget' in req.body) fields.budget_cents = toCents(req.body.budget);
-    if ('status' in req.body) fields.status = req.body.status;
-    if ('target_store_id' in req.body) {
-      fields.target_store_id = req.body.target_store_id ? Number(req.body.target_store_id) : null;
-    }
-    renderHeaderResponse(res, db.updateTrip(trip.id, fields));
-  });
-
-  // DELETE /trips/:id — remove; redirect to the list
-  router.delete('/trips/:id', (req, res) => {
-    const trip = db.getTrip(Number(req.params.id));
-    if (!trip) {
-      res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
-      return;
-    }
-    db.deleteTrip(trip.id);
-    res.redirect('/trips');
-  });
-
-  // POST /trips/:id/items — add a line -> list groups + OOB budget bar
-  router.post('/trips/:id/items', (req, res) => {
-    const trip = db.getTrip(Number(req.params.id));
-    if (!trip) {
-      res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
-      return;
-    }
-    const itemName = blankToNull(req.body.item_name);
-    if (!itemName) {
-      res.status(400).render('partials/error', { status: 400, message: 'Item name is required.' });
-      return;
-    }
-    const categoryKey = req.body.category_key ? String(req.body.category_key) : null;
-    db.addTripItem(trip.id, {
-      itemName,
-      categoryKey,
-      estCents: toCents(req.body.est),
-      qty: req.body.qty ? Number(req.body.qty) : 1,
-    });
-    renderListsResponse(res, trip.id);
-  });
-
-  // PATCH /trips/:id/items/:lineId — tick bought / update qty, est, actual
-  router.patch('/trips/:id/items/:lineId', (req, res) => {
-    const trip = db.getTrip(Number(req.params.id));
-    if (!trip) {
-      res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
-      return;
-    }
-    const line = db.getTripItem(Number(req.params.lineId));
-    if (!line || line.trip_id !== trip.id) {
-      res.status(404).render('partials/error', { status: 404, message: 'Item not found.' });
-      return;
-    }
-    const fields = {};
-    // Checkbox: present + value "1"/"on" means bought; absent means not bought.
-    fields.bought = req.body.bought === '1' || req.body.bought === 'on' ? 1 : 0;
-    if ('qty' in req.body) fields.qty = Number(req.body.qty) || 1;
-    if ('est' in req.body) fields.est_cents = toCents(req.body.est);
-    if ('actual' in req.body) fields.actual_cents = toCents(req.body.actual);
-    if (req.body.category_key) fields.category_key = String(req.body.category_key);
-    db.updateTripItem(line.id, fields);
-
-    // M4: buying restocks the kitchen. Only on the transition — this route also
-    // fires when you edit a price on an already-ticked line, and that must not
-    // add another unit.
-    applyBoughtToInventory(db, {
-      itemId: line.item_id,
-      qty: fields.qty ?? line.qty,
-      wasBought: line.bought,
-      isBought: fields.bought,
-    });
-    renderListsResponse(res, trip.id);
-  });
-
-  // DELETE /trips/:id/items/:lineId — remove a line
-  router.delete('/trips/:id/items/:lineId', (req, res) => {
-    const line = db.getTripItem(Number(req.params.lineId));
-    if (!line) {
-      res.status(404).render('partials/error', { status: 404, message: 'Item not found.' });
-      return;
-    }
-    // Removing a line you had already ticked takes that unit back off the
-    // shelf — same transition as un-ticking it (M4).
-    applyBoughtToInventory(db, {
-      itemId: line.item_id,
-      qty: line.qty,
-      wasBought: line.bought,
-      isBought: 0,
-    });
-    db.deleteTripItem(line.id);
-    renderListsResponse(res, line.trip_id);
-  });
-
-  // GET /trips/:id/items/suggest?q= — type-ahead <ul> from the catalog
-  router.get('/trips/:id/items/suggest', (req, res) => {
-    const q = blankToNull(req.query.q);
-    const items = q ? db.searchItems(q, 8) : [];
-    res.render('partials/suggest', { items });
-  });
-
-  // GET /trips/:id/explain — optional narrative summary (M5, docs/06).
-  // 404s unless ENABLE_LLM=true and a key is set, so the feature simply does
-  // not exist by default rather than failing loudly.
-  router.get('/trips/:id/explain', async (req, res) => {
-    const trip = db.getTrip(Number(req.params.id));
-    if (!trip) {
-      res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
-      return;
-    }
-    if (!llmEnabled()) {
-      res.status(404).render('partials/error', {
-        status: 404,
-        message: 'Explanations are switched off (ENABLE_LLM).',
-      });
-      return;
-    }
-
-    const factSheet = buildFactSheet({
-      trip,
-      budget: db.budgetForTrip(trip.id),
-      buckets: buildBuckets(trip.id),
-      cadence: cadence(db),
-      comparison: compareBasket(db, trip.id),
-      formatCents,
-    });
-
-    try {
-      const { text, model } = await requestExplanation(factSheet);
-      res.render('partials/explain', { text, model, error: null, trip });
-    } catch (err) {
-      res.status(502).render('partials/explain', {
-        text: null,
-        model: null,
-        error: err.message,
-        trip,
-      });
-    }
-  });
-
-  // GET /trips/:id/insights/{regulars,new,forgotten} — one bucket as a partial
-  for (const def of BUCKET_DEFS) {
-    router.get(`/trips/:id/insights/${def.key}`, (req, res) => {
-      const trip = db.getTrip(Number(req.params.id));
+  router.get(
+    '/trips/:id',
+    wrap(async (req, res) => {
+      const trip = await db.getTrip(Number(req.params.id));
       if (!trip) {
         res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
         return;
       }
-      res.render('partials/insight-bucket', {
+      const [budget, items, buckets, cadenceInfo, stores, categories] = await Promise.all([
+        db.budgetForTrip(trip.id),
+        db.getTripItems(trip.id),
+        buildBuckets(trip.id),
+        cadence(db),
+        db.listStores(),
+        db.listCategories(),
+      ]);
+      res.render('trips/show', {
+        title: trip.name,
         trip,
-        bucket: { ...def, rows: def.rows(trip.id) },
+        budget,
+        groups: groupItemsByCategory(items),
+        buckets,
+        cadence: cadenceInfo,
+        llm: llmEnabled(),
+        stores,
+        categories,
+        formatCents,
       });
-    });
+    })
+  );
+
+  // PATCH /trips/:id — update name/dates/budget/status -> header partial + OOB bar
+  router.patch(
+    '/trips/:id',
+    wrap(async (req, res) => {
+      const trip = await db.getTrip(Number(req.params.id));
+      if (!trip) {
+        res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
+        return;
+      }
+      const fields = {};
+      const name = blankToNull(req.body.name);
+      if (name) fields.name = name;
+      if ('start_date' in req.body) fields.start_date = blankToNull(req.body.start_date);
+      if ('end_date' in req.body) fields.end_date = blankToNull(req.body.end_date);
+      if ('shop_date' in req.body) fields.shop_date = blankToNull(req.body.shop_date);
+      if ('budget' in req.body) fields.budget_cents = toCents(req.body.budget);
+      if ('status' in req.body) fields.status = req.body.status;
+      if ('target_store_id' in req.body) {
+        fields.target_store_id = req.body.target_store_id ? Number(req.body.target_store_id) : null;
+      }
+      await renderHeaderResponse(res, await db.updateTrip(trip.id, fields));
+    })
+  );
+
+  // DELETE /trips/:id — remove; redirect to the list
+  router.delete(
+    '/trips/:id',
+    wrap(async (req, res) => {
+      const trip = await db.getTrip(Number(req.params.id));
+      if (!trip) {
+        res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
+        return;
+      }
+      await db.deleteTrip(trip.id);
+      res.redirect('/trips');
+    })
+  );
+
+  // POST /trips/:id/items — add a line -> list groups + OOB budget bar
+  router.post(
+    '/trips/:id/items',
+    wrap(async (req, res) => {
+      const trip = await db.getTrip(Number(req.params.id));
+      if (!trip) {
+        res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
+        return;
+      }
+      const itemName = blankToNull(req.body.item_name);
+      if (!itemName) {
+        res
+          .status(400)
+          .render('partials/error', { status: 400, message: 'Item name is required.' });
+        return;
+      }
+      const categoryKey = req.body.category_key ? String(req.body.category_key) : null;
+      await db.addTripItem(trip.id, {
+        itemName,
+        categoryKey,
+        estCents: toCents(req.body.est),
+        qty: req.body.qty ? Number(req.body.qty) : 1,
+      });
+      await renderListsResponse(res, trip.id);
+    })
+  );
+
+  // PATCH /trips/:id/items/:lineId — tick bought / update qty, est, actual
+  router.patch(
+    '/trips/:id/items/:lineId',
+    wrap(async (req, res) => {
+      const trip = await db.getTrip(Number(req.params.id));
+      if (!trip) {
+        res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
+        return;
+      }
+      const line = await db.getTripItem(Number(req.params.lineId));
+      if (!line || line.trip_id !== trip.id) {
+        res.status(404).render('partials/error', { status: 404, message: 'Item not found.' });
+        return;
+      }
+      const fields = {};
+      // Checkbox: present + value "1"/"on" means bought; absent means not bought.
+      fields.bought = req.body.bought === '1' || req.body.bought === 'on' ? 1 : 0;
+      if ('qty' in req.body) fields.qty = Number(req.body.qty) || 1;
+      if ('est' in req.body) fields.est_cents = toCents(req.body.est);
+      if ('actual' in req.body) fields.actual_cents = toCents(req.body.actual);
+      if (req.body.category_key) fields.category_key = String(req.body.category_key);
+      await db.updateTripItem(line.id, fields);
+
+      // M4: buying restocks the kitchen. Only on the transition — this route also
+      // fires when you edit a price on an already-ticked line, and that must not
+      // add another unit.
+      await applyBoughtToInventory(db, {
+        itemId: line.item_id,
+        qty: fields.qty ?? line.qty,
+        wasBought: line.bought,
+        isBought: fields.bought,
+      });
+      await renderListsResponse(res, trip.id);
+    })
+  );
+
+  // DELETE /trips/:id/items/:lineId — remove a line
+  router.delete(
+    '/trips/:id/items/:lineId',
+    wrap(async (req, res) => {
+      const line = await db.getTripItem(Number(req.params.lineId));
+      if (!line) {
+        res.status(404).render('partials/error', { status: 404, message: 'Item not found.' });
+        return;
+      }
+      // Removing a line you had already ticked takes that unit back off the
+      // shelf — same transition as un-ticking it (M4).
+      await applyBoughtToInventory(db, {
+        itemId: line.item_id,
+        qty: line.qty,
+        wasBought: line.bought,
+        isBought: 0,
+      });
+      await db.deleteTripItem(line.id);
+      await renderListsResponse(res, line.trip_id);
+    })
+  );
+
+  // GET /trips/:id/items/suggest?q= — type-ahead <ul> from the catalog
+  router.get(
+    '/trips/:id/items/suggest',
+    wrap(async (req, res) => {
+      const q = blankToNull(req.query.q);
+      const items = q ? await db.searchItems(q, 8) : [];
+      res.render('partials/suggest', { items });
+    })
+  );
+
+  // GET /trips/:id/explain — optional narrative summary (M5, docs/06).
+  // 404s unless ENABLE_LLM=true and a key is set, so the feature simply does
+  // not exist by default rather than failing loudly.
+  router.get(
+    '/trips/:id/explain',
+    wrap(async (req, res) => {
+      const trip = await db.getTrip(Number(req.params.id));
+      if (!trip) {
+        res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
+        return;
+      }
+      if (!llmEnabled()) {
+        res.status(404).render('partials/error', {
+          status: 404,
+          message: 'Explanations are switched off (ENABLE_LLM).',
+        });
+        return;
+      }
+
+      const [budget, buckets, cadenceInfo, comparison] = await Promise.all([
+        db.budgetForTrip(trip.id),
+        buildBuckets(trip.id),
+        cadence(db),
+        compareBasket(db, trip.id),
+      ]);
+      const factSheet = buildFactSheet({
+        trip,
+        budget,
+        buckets,
+        cadence: cadenceInfo,
+        comparison,
+        formatCents,
+      });
+
+      try {
+        const { text, model } = await requestExplanation(factSheet);
+        res.render('partials/explain', { text, model, error: null, trip });
+      } catch (err) {
+        res.status(502).render('partials/explain', {
+          text: null,
+          model: null,
+          error: err.message,
+          trip,
+        });
+      }
+    })
+  );
+
+  // GET /trips/:id/insights/{regulars,new,forgotten} — one bucket as a partial
+  for (const def of BUCKET_DEFS) {
+    router.get(
+      `/trips/:id/insights/${def.key}`,
+      wrap(async (req, res) => {
+        const trip = await db.getTrip(Number(req.params.id));
+        if (!trip) {
+          res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
+          return;
+        }
+        res.render('partials/insight-bucket', {
+          trip,
+          bucket: { ...def, rows: await def.rows(trip.id) },
+        });
+      })
+    );
   }
 
   // POST /trips/:id/insights/add-regulars — bulk add every regular not yet listed
-  router.post('/trips/:id/insights/add-regulars', (req, res) => {
-    const trip = db.getTrip(Number(req.params.id));
-    if (!trip) {
-      res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
-      return;
-    }
-    for (const row of regulars(db, trip.id)) {
-      if (row.already_on_list) continue;
-      db.addTripItem(trip.id, { itemId: row.item_id, categoryKey: row.category_key });
-    }
-    renderListsResponse(res, trip.id);
-  });
+  router.post(
+    '/trips/:id/insights/add-regulars',
+    wrap(async (req, res) => {
+      const trip = await db.getTrip(Number(req.params.id));
+      if (!trip) {
+        res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
+        return;
+      }
+      // Sequential: addTripItem derives each line's position from the current
+      // MAX(position), so adding these concurrently would hand several lines
+      // the same position.
+      for (const row of await regulars(db, trip.id)) {
+        if (row.already_on_list) continue;
+        await db.addTripItem(trip.id, { itemId: row.item_id, categoryKey: row.category_key });
+      }
+      await renderListsResponse(res, trip.id);
+    })
+  );
 
   return router;
 }

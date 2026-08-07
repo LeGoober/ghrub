@@ -3,9 +3,9 @@ import { createDatabase } from '../src/db/repo.js';
 import { runSeed } from '../scripts/seed.js';
 
 describe('scripts/seed.js importer', () => {
-  it('imports the history headlessly and is idempotent', () => {
-    const db = createDatabase(':memory:');
-    const first = runSeed(db);
+  it('imports the history headlessly and is idempotent', async () => {
+    const db = await createDatabase(':memory:');
+    const first = await runSeed(db);
 
     expect(first.categories).toBe(13);
     expect(first.stores).toBe(3);
@@ -16,29 +16,29 @@ describe('scripts/seed.js importer', () => {
     expect(first.recipe_ingredients).toBeGreaterThan(0);
 
     // Re-running must not duplicate anything.
-    const second = runSeed(db);
+    const second = await runSeed(db);
     expect(second).toEqual(first);
   });
 
-  it('stores money as integer cents (JSON is whole ZAR × 100)', () => {
-    const db = createDatabase(':memory:');
-    runSeed(db);
+  it('stores money as integer cents (JSON is whole ZAR × 100)', async () => {
+    const db = await createDatabase(':memory:');
+    await runSeed(db);
 
-    const trip = db.listTrips().find((t) => t.name === 'Bambezela Spezial V3 (Apr)');
+    const trip = (await db.listTrips()).find((t) => t.name === 'Bambezela Spezial V3 (Apr)');
     expect(trip.budget_cents).toBe(28000); // budget: 280
 
-    const eggs = db.getTripItems(trip.id).find((i) => i.item_name === 'Eggs');
+    const eggs = (await db.getTripItems(trip.id)).find((i) => i.item_name === 'Eggs');
     expect(eggs.est_cents).toBe(4000); // est: 40
     expect(eggs.actual_cents).toBe(4000); // actual: 40
     expect(eggs.bought).toBe(1);
   });
 
-  it('keeps null estimates/actuals as null (not 0)', () => {
-    const db = createDatabase(':memory:');
-    runSeed(db);
+  it('keeps null estimates/actuals as null (not 0)', async () => {
+    const db = await createDatabase(':memory:');
+    await runSeed(db);
 
-    const trip = db.listTrips().find((t) => t.name === 'Bambezela Spezial V3 (Apr)');
-    const garlic = db.getTripItems(trip.id).find((i) => i.item_name === 'Garlic');
+    const trip = (await db.listTrips()).find((t) => t.name === 'Bambezela Spezial V3 (Apr)');
+    const garlic = (await db.getTripItems(trip.id)).find((i) => i.item_name === 'Garlic');
     expect(garlic.actual_cents).toBeNull();
     expect(garlic.bought).toBe(0);
   });
