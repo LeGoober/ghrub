@@ -139,4 +139,42 @@ describe('PWA, empty and error states (M5)', () => {
       expect(dark.length).toBeGreaterThan(0);
     });
   });
+
+  describe('bottom tab bar (M6)', () => {
+    // Regression cover: the nav is built in a partial with raw-output tags, and
+    // an escaping slip there renders `aria-current=&#34;page&#34;` and prints the
+    // SVG path data as visible text on every page in the app at once.
+    const PAGES = ['/', '/trips', '/inventory', '/recipes', '/history', '/receipts'];
+
+    it('appears on every page, with the icons as markup rather than text', async () => {
+      for (const path of PAGES) {
+        const res = await request(app).get(path);
+        expect(res.status, path).toBe(200);
+        expect((res.text.match(/class="tab[ "]/g) || []).length, path).toBe(5);
+        expect(res.text, path).not.toContain('&lt;path');
+        expect(res.text, path).not.toContain('aria-current=&');
+      }
+    });
+
+    it('marks exactly one tab as the current section', async () => {
+      for (const path of PAGES) {
+        const res = await request(app).get(path);
+        expect((res.text.match(/class="tab is-current"/g) || []).length, path).toBe(1);
+        expect((res.text.match(/aria-current="page"/g) || []).length, path).toBe(1);
+      }
+    });
+
+    it('keeps the kitchen tab lit on the pages it owns', async () => {
+      for (const path of ['/inventory', '/recipes']) {
+        const res = await request(app).get(path);
+        // The lit anchor is the one pointing at /inventory.
+        expect(res.text, path).toMatch(/class="tab is-current"\s+href="\/inventory"/);
+      }
+    });
+
+    it('still closes the document after the nav', async () => {
+      const res = await request(app).get('/');
+      expect(res.text.trimEnd().endsWith('</html>')).toBe(true);
+    });
+  });
 });

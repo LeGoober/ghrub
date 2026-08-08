@@ -1,0 +1,99 @@
+<% if (error) { %>
+  <section class="card error-card">
+    <h2>Could not read that</h2>
+    <p class="error"><%= error %></p>
+    <p class="muted">A flat slip in even light, with the whole thing in frame, reads best.</p>
+  </section>
+<% } else if (!result.items.length) { %>
+  <section class="card empty">
+    <h2>Nothing to add</h2>
+    <p class="muted">
+      No purchased items were found on that photo<% if (result.dropped) { %> — <%= result.dropped %>
+      line<%= result.dropped === 1 ? ' was' : 's were' %> skipped as unreadable<% } %>.
+      Try a sharper photo, or one half of the slip at a time.
+    </p>
+  </section>
+<% } else { %>
+  <form
+    class="card review"
+    hx-post="/receipts/apply"
+    hx-target="#receipt-result"
+    hx-swap="innerHTML"
+  >
+    <h2>Check the reading</h2>
+    <p class="muted">
+      <%= result.items.length %> item<%= result.items.length === 1 ? '' : 's' %> found<%
+        if (result.store) { %> at <strong><%= result.store %></strong><% }
+      %><% if (result.purchasedOn) { %> on <%= result.purchasedOn %><% } %><%
+        if (result.totalCents) { %> · slip total <%= formatCents(result.totalCents) %><% } %>.
+      Untick anything you do not want, and fix whatever was misread.
+    </p>
+    <% if (result.dropped) { %>
+      <p class="muted"><%= result.dropped %> line<%= result.dropped === 1 ? '' : 's' %> could not be read and <%= result.dropped === 1 ? 'was' : 'were' %> left out.</p>
+    <% } %>
+
+    <input type="hidden" name="purchased_on" value="<%= result.purchasedOn || '' %>" />
+
+    <ul class="review-rows">
+      <% result.items.forEach((item, i) => { %>
+        <li class="review-row<%= item.confident ? '' : ' is-unsure' %>">
+          <input type="hidden" name="idx" value="<%= i %>" />
+          <label class="review-keep">
+            <input type="checkbox" name="keep" value="<%= i %>" checked />
+            <span class="visually-hidden">Add <%= item.name %></span>
+          </label>
+          <div class="review-fields">
+            <label class="field grow">
+              <span class="visually-hidden">Item</span>
+              <input name="name_<%= i %>" value="<%= item.name %>" required />
+            </label>
+            <label class="field field-qty">
+              <span>Qty</span>
+              <input name="qty_<%= i %>" type="number" min="0.1" step="0.1" value="<%= item.qty %>" required />
+            </label>
+            <label class="field field-price">
+              <span>Each</span>
+              <input
+                name="price_<%= i %>"
+                type="number"
+                min="0"
+                step="0.01"
+                inputmode="decimal"
+                value="<%= item.unitPriceCents === null ? '' : (item.unitPriceCents / 100).toFixed(2) %>"
+              />
+            </label>
+            <label class="field field-cat">
+              <span class="visually-hidden">Category</span>
+              <select name="category_<%= i %>">
+                <% categories.forEach((c) => { %>
+                  <option value="<%= c.key %>"<%= c.key === item.categoryKey ? ' selected' : '' %>><%= c.label %></option>
+                <% }) %>
+              </select>
+            </label>
+          </div>
+          <% if (!item.confident) { %>
+            <p class="review-flag">Hard to read — worth a check.</p>
+          <% } %>
+        </li>
+      <% }) %>
+    </ul>
+
+    <div class="review-prices">
+      <label class="check">
+        <input type="checkbox" name="record_prices" value="1" checked />
+        <span>Also remember these prices</span>
+      </label>
+      <label class="field">
+        <span>Store</span>
+        <select name="store_id">
+          <option value="">— pick a store —</option>
+          <% stores.forEach((s) => { %>
+            <option value="<%= s.id %>"<%= result.store && s.name.toLowerCase() === result.store.toLowerCase() ? ' selected' : '' %>><%= s.name %></option>
+          <% }) %>
+        </select>
+      </label>
+    </div>
+
+    <button class="btn btn-lg" type="submit">Add to my kitchen</button>
+  </form>
+<% } %>
