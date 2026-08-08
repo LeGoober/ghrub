@@ -1,0 +1,35 @@
+<section class="card applied">
+  <% if (!stocked.length) { %>
+    <h2>Nothing added</h2>
+    <p class="muted">Every line was unticked, so your kitchen is unchanged.</p>
+    <a class="btn ghost" href="/receipts">Scan another</a>
+  <% } else { %>
+    <h2>Added to your kitchen</h2>
+    <p class="muted">
+      <%= stocked.length %> item<%= stocked.length === 1 ? '' : 's' %> restocked<%
+        if (priced.length && store) { %>, and <%= priced.length %> price<%= priced.length === 1 ? '' : 's' %> remembered for <strong><%= store.name %></strong><% }
+      %>.
+    </p>
+
+    <ul class="applied-list">
+      <% stocked.forEach((row) => { %>
+        <li>
+          <span class="applied-name"><%= row.name %></span>
+          <span class="applied-delta">+<%= row.qty %></span>
+          <span class="muted">now <%= row.onHand %> on hand</span>
+        </li>
+      <% }) %>
+    </ul>
+
+    <% if (lowStock.length) { %>
+      <p class="muted">
+        Still running low: <%= lowStock.slice(0, 6).map((r) => r.item_name).join(', ') %><%= lowStock.length > 6 ? '…' : '' %>
+      </p>
+    <% } %>
+
+    <div class="applied-actions">
+      <a class="btn" href="/inventory">See my inventory</a>
+      <a class="btn ghost" href="/receipts">Scan another</a>
+    </div>
+  <% } %>
+</section>

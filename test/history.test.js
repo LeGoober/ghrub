@@ -88,7 +88,9 @@ describe('habit buckets + /history (M2 routes)', () => {
     expect(res.text).toContain('Spend per shop');
     expect(res.text).toContain('Average spend by category');
     expect(res.text).toContain('hero-figure');
-    expect((res.text.match(/<svg/g) || []).length).toBe(2);
+    // Counted by the chart class, not by <svg>: the bottom tab bar draws its
+    // icons as inline SVG too, so a bare <svg> count measures the nav as well.
+    expect((res.text.match(/class="chart"/g) || []).length).toBe(2);
     // Every chart has a table-view twin, so no value is gated behind hover.
     expect(res.text).toContain('<table');
     expect(res.text).toContain('Bambezela Spezial');

@@ -6,6 +6,7 @@ import { tripsRouter } from './routes/trips.js';
 import { historyRouter } from './routes/history.js';
 import { storesRouter } from './routes/stores.js';
 import { kitchenRouter } from './routes/kitchen.js';
+import { receiptsRouter } from './routes/receipts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -28,6 +29,13 @@ export async function createApp(db) {
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, 'views'));
 
+  // The bottom tab bar highlights the section you are in, and a partial has no
+  // access to the request — so the path is published to every render.
+  app.use((req, res, next) => {
+    res.locals.currentPath = req.path;
+    next();
+  });
+
   // Render health check — must not depend on the DB.
   app.get('/healthz', (_req, res) => res.status(200).json({ ok: true, app: 'ghrub' }));
 
@@ -43,6 +51,7 @@ export async function createApp(db) {
   app.use('/', historyRouter(database));
   app.use('/', storesRouter(database));
   app.use('/', kitchenRouter(database));
+  app.use('/', receiptsRouter(database));
   app.use('/', tripsRouter(database));
 
   // Anything unmatched is a real 404 rather than Express's default HTML stub.
