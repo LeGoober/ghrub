@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title><%= title %></title>
     <meta name="description" content="Your groceries, remembered." />
-    <meta name="theme-color" content="#1f6f4a" />
+    <!-- The browser chrome follows the app's theme rather than staying green
+         behind a dark UI. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4f2ec" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#12110f" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/static/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/static/icon.svg" />
