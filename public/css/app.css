@@ -1411,8 +1411,32 @@ code {
   transform: scale(0.99);
 }
 
-/* The input is off-screen, so its focus ring has to be drawn on the label. */
-#receipt-photo:focus-visible + .capture,
+/* Camera first and big; the gallery is the quieter second way in. `capture`
+   forces the camera on Android, so without this button there would be no way
+   to read a slip photographed earlier. */
+.capture-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.capture.capture-secondary {
+  min-height: 48px;
+  padding: var(--s2) var(--s4);
+  border-style: solid;
+  border-width: 1px;
+  border-color: var(--line-strong);
+  background: transparent;
+  color: var(--ink);
+}
+
+.capture.capture-secondary .capture-title {
+  font-size: var(--t-md);
+}
+
+/* The inputs are off-screen, so their focus ring is drawn on the labels. */
+#receipt-camera:focus-visible ~ .capture-choices .capture:first-child,
+#receipt-file:focus-visible ~ .capture-choices .capture-secondary,
 .capture:focus-within {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -1543,6 +1567,103 @@ code {
   font-size: var(--t-xs);
   font-weight: 600;
   color: var(--warn-ink);
+}
+
+/* What the till actually printed, so a wrong catalog match is easy to spot. */
+.review-raw {
+  grid-column: 2;
+  margin: 0;
+  font-size: var(--t-xs);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.review-raw span {
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  letter-spacing: 0.02em;
+}
+
+/* The lines-vs-slip-total check: the single best sign a row was missed. */
+.review-gap,
+.review-ok {
+  margin: var(--s2) 0;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--r-sm);
+  font-size: var(--t-sm);
+}
+
+.review-gap {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-line);
+  color: var(--warn-ink-deep);
+}
+
+.review-ok {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  color: var(--accent-deep);
+}
+
+.review-engine {
+  margin: var(--s2) 0 0;
+  font-size: var(--t-xs);
+  text-align: center;
+}
+
+.scan-progress {
+  width: 100%;
+  height: 8px;
+  accent-color: var(--accent);
+}
+
+.scan-alt {
+  margin: 0;
+  font-size: var(--t-sm);
+  text-align: center;
+}
+
+.linklike {
+  min-height: 44px;
+  padding: 0 var(--s1);
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.qr-text {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: var(--t-sm);
+}
+
+.applied-trip {
+  margin: var(--s2) 0;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--r-sm);
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
+
+.scan-tips summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.scan-tips ul {
+  margin: var(--s2) 0 0;
+  padding-left: 1.2em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  color: var(--muted);
+  font-size: var(--t-sm);
 }
 
 .review-prices {

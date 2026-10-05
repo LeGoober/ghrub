@@ -8,6 +8,7 @@ import pg from 'pg';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
+const UPGRADES_PATH = path.join(__dirname, 'upgrades.sql');
 
 const TRIP_FIELDS = [
   'name',
@@ -234,12 +235,21 @@ export async function createDatabase(url = process.env.DATABASE_URL) {
       );
     },
 
-    getOrCreateItem(name, categoryKey = 'pantry') {
+    /**
+     * The catalog item called `name`, created under `categoryKey` if it is new.
+     *
+     * An existing item keeps its category. Every caller passes a *fallback*
+     * ('pantry' for a recipe ingredient or a price entry), and overwriting on
+     * conflict meant saving a recipe with Eggs in it refiled Eggs under Pantry
+     * everywhere — the seed did exactly that to every recipe ingredient.
+     */
+    getOrCreateItem(name, categoryKey) {
+      // The no-op DO UPDATE is what makes RETURNING yield the existing row.
       return get(
         `INSERT INTO item (name, category_key) VALUES ($1, $2)
-         ON CONFLICT (lower(name)) DO UPDATE SET category_key = excluded.category_key
+         ON CONFLICT (lower(name)) DO UPDATE SET name = item.name
          RETURNING *`,
-        [String(name).trim(), categoryKey]
+        [String(name).trim(), categoryKey || 'pantry']
       );
     },
 
@@ -251,7 +261,37 @@ export async function createDatabase(url = process.env.DATABASE_URL) {
       ]);
     },
 
+    /** The whole catalog, for matching receipt lines against what you already buy. */
+    listCatalog() {
+      return all('SELECT id, name, category_key FROM item ORDER BY name');
+    },
+
+    // ---- receipt aliases ----
+
+    /** Every learnt till spelling, joined to the item it stands for. */
+    listAliases() {
+      return all(
+        `SELECT a.alias, i.id, i.name, i.category_key
+         FROM item_alias a JOIN item i ON i.id = a.item_id`
+      );
+    },
+
+    /** Remember (or re-point) what a till's spelling of a product means. */
+    rememberAlias(alias, itemId) {
+      return get(
+        `INSERT INTO item_alias (alias, item_id) VALUES ($1, $2)
+         ON CONFLICT (alias) DO UPDATE SET item_id = excluded.item_id
+         RETURNING *`,
+        [alias, itemId]
+      );
+    },
+
     // ---- trips ----
+
+    /** The line for an item on a trip, if it is on the list. */
+    getTripLineByItem(tripId, itemId) {
+      return get('SELECT * FROM trip_item WHERE trip_id = $1 AND item_id = $2', [tripId, itemId]);
+    },
 
     listTrips() {
       return all(
@@ -821,6 +861,9 @@ async function migrate(driver) {
       if (!rows[0].t) {
         await client.exec(readFileSync(SCHEMA_PATH, 'utf8'));
       }
+      // Additive, idempotent changes since the first deploy. Inside the same
+      // lock, so two booting instances cannot race on them either.
+      await client.exec(readFileSync(UPGRADES_PATH, 'utf8'));
     } finally {
       await client.query('SELECT pg_advisory_unlock(hashtext($1))', ['ghrub_migrate']);
     }

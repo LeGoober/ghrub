@@ -274,18 +274,20 @@ describe('receipt scanning (M6)', () => {
       delete process.env.ANTHROPIC_API_KEY;
     });
 
-    it('explains itself instead of 500ing when no key is set', async () => {
+    it('offers the camera with no API key at all — reading is local', async () => {
       const res = await request(app).get('/receipts');
       expect(res.status).toBe(200);
-      expect(res.text).toContain('Not switched on');
-      expect(res.text).toContain('ANTHROPIC_API_KEY');
-    });
-
-    it('offers the camera once a key is set', async () => {
-      process.env.ANTHROPIC_API_KEY = 'sk-test';
-      const res = await request(app).get('/receipts');
       expect(res.text).toContain('Take a photo');
       expect(res.text).toContain('capture="environment"');
+      expect(res.text).toContain('/static/js/receipt-scan.js');
+      // The Claude reader is opt-in and absent without a key.
+      expect(res.text).not.toContain('Ask Claude instead');
+    });
+
+    it('offers Claude as a second opinion once a key is set', async () => {
+      process.env.ANTHROPIC_API_KEY = 'sk-test';
+      const res = await request(app).get('/receipts');
+      expect(res.text).toContain('Ask Claude instead');
     });
 
     it('404s a scan when the feature is off', async () => {

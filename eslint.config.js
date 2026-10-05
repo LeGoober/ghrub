@@ -41,6 +41,20 @@ export default [
     },
   },
   {
+    // Browser scripts served from /static/js — a classic script, not a module.
+    files: ['public/js/**/*.js'],
+    languageOptions: {
+      sourceType: 'script',
+      globals: {
+        window: 'readonly',
+        document: 'readonly',
+        navigator: 'readonly',
+        Image: 'readonly',
+        createImageBitmap: 'readonly',
+      },
+    },
+  },
+  {
     files: ['test/**/*.js', '**/*.test.js'],
     languageOptions: {
       globals: {
