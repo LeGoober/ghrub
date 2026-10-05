@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { toCents, formatCents } from '../lib/money.js';
 import { regulars, newThisList, oftenForgotten, cadence } from '../lib/insights.js';
 import { applyBoughtToInventory, lowStockSuggestions } from '../lib/kitchen.js';
+import { guessCategory } from '../lib/receipt-text.js';
 import { compareBasket } from '../lib/compare.js';
 import { llmEnabled, buildFactSheet, requestExplanation } from '../lib/explain.js';
 import { wrap } from './wrap.js';
@@ -124,9 +125,13 @@ export function tripsRouter(db) {
   router.get(
     '/',
     wrap(async (req, res) => {
-      const [trips, stores] = await Promise.all([db.listTrips(), db.listStores()]);
+      const [trips, stores, lowStock] = await Promise.all([
+        db.listTrips(),
+        db.listStores(),
+        db.lowStockItems(),
+      ]);
       const active = trips.find((t) => t.status !== 'done') || trips[0] || null;
-      res.render('dashboard', { title: 'ghrub', active, stores });
+      res.render('dashboard', { title: 'ghrub', active, stores, lowStock });
     })
   );
 
@@ -226,7 +231,14 @@ export function tripsRouter(db) {
         return;
       }
       await db.deleteTrip(trip.id);
-      res.redirect('/trips');
+      // A 302 answer to a DELETE is replayed by the browser as another DELETE
+      // (to /trips, which 404s), so the page never moved. HTMX navigates on
+      // HX-Redirect instead; a plain request gets a 303, which becomes a GET.
+      if (req.get('HX-Request')) {
+        res.set('HX-Redirect', '/trips').status(200).end();
+        return;
+      }
+      res.redirect(303, '/trips');
     })
   );
 
@@ -246,13 +258,35 @@ export function tripsRouter(db) {
           .render('partials/error', { status: 400, message: 'Item name is required.' });
         return;
       }
-      const categoryKey = req.body.category_key ? String(req.body.category_key) : null;
-      await db.addTripItem(trip.id, {
-        itemName,
-        categoryKey,
-        estCents: toCents(req.body.est),
-        qty: req.body.qty ? Number(req.body.qty) : 1,
-      });
+      // Blank means "Auto": an item you have bought before keeps its own
+      // category, and a new one is guessed from its name rather than landing
+      // in whatever the first option of the select happens to be.
+      const chosen = req.body.category_key ? String(req.body.category_key) : null;
+      const fallback =
+        chosen ??
+        guessCategory(
+          itemName,
+          (await db.listCategories()).map((c) => c.key)
+        );
+      const item = await db.getOrCreateItem(itemName, fallback);
+      const estCents = toCents(req.body.est);
+
+      // Adding something already on the list must not reset it. The upsert
+      // underneath overwrites every column, so re-adding a ticked line used to
+      // untick it and wipe its price — and ticking it again restocked twice.
+      const existing = await db.getTripLineByItem(trip.id, item.id);
+      if (existing) {
+        if (estCents !== null && existing.est_cents == null) {
+          await db.updateTripItem(existing.id, { est_cents: estCents });
+        }
+      } else {
+        await db.addTripItem(trip.id, {
+          itemId: item.id,
+          categoryKey: chosen ?? item.category_key,
+          estCents,
+          qty: req.body.qty ? Number(req.body.qty) : 1,
+        });
+      }
       await renderListsResponse(res, trip.id);
     })
   );

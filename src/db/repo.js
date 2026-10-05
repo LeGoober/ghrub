@@ -777,6 +777,11 @@ export async function createDatabase(url = process.env.DATABASE_URL) {
       return this.getInventory(itemId);
     },
 
+    /** Stop tracking an item at home. Its catalog entry and history stay. */
+    async deleteInventory(itemId) {
+      await all('DELETE FROM inventory WHERE item_id = $1', [itemId]);
+    },
+
     /** Tracked items at or below their low-water mark. */
     lowStockItems() {
       return all(

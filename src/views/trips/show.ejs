@@ -25,6 +25,7 @@
             name="item_name"
             autocomplete="off"
             placeholder="Type to search catalog…"
+            required
             hx-get="/trips/<%= trip.id %>/items/suggest"
             hx-trigger="keyup changed delay:250ms"
             hx-target="#suggest"
@@ -34,6 +35,7 @@
         <label class="field">
           <span>Category</span>
           <select name="category_key">
+            <option value="">Auto</option>
             <% categories.forEach((c) => { %>
               <option value="<%= c.key %>"><%= c.label %></option>
             <% }) %>
@@ -41,7 +43,7 @@
         </label>
         <label class="field">
           <span>Est. (R)</span>
-          <input name="est" type="number" min="0" step="0.01" placeholder="25" />
+          <input name="est" type="number" min="0" step="0.01" inputmode="decimal" placeholder="25" />
         </label>
         <button class="btn" type="submit">Add</button>
       </div>

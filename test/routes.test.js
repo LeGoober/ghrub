@@ -105,12 +105,54 @@ describe('routes (src/routes/trips.js)', () => {
     expect(await db.getTripItems(trip.id)).toHaveLength(0);
   });
 
-  it('deletes a trip and redirects to the list', async () => {
+  it('deletes a trip and redirects to the list with a 303, which becomes a GET', async () => {
     const trip = await db.createTrip({ name: 'Gone' });
     const res = await request(app).delete(`/trips/${trip.id}`);
-    expect(res.status).toBe(302);
+    // A 302 would make the browser replay the DELETE against /trips.
+    expect(res.status).toBe(303);
     expect(res.headers.location).toBe('/trips');
     expect(await db.getTrip(trip.id)).toBeUndefined();
+  });
+
+  it('tells HTMX where to go after deleting a trip', async () => {
+    const trip = await db.createTrip({ name: 'Gone' });
+    const res = await request(app).delete(`/trips/${trip.id}`).set('HX-Request', 'true');
+    expect(res.status).toBe(200);
+    expect(res.headers['hx-redirect']).toBe('/trips');
+  });
+
+  it('re-adding an item already on the list leaves it alone', async () => {
+    const trip = await db.createTrip({ name: 'Shop' });
+    await db.upsertCategory('produce', 'Fruits and Veggies');
+    const line = await db.addTripItem(trip.id, { itemName: 'Avocado', categoryKey: 'produce' });
+    await db.updateTripItem(line.id, { bought: 1, actual_cents: 2500 });
+
+    await request(app)
+      .post(`/trips/${trip.id}/items`)
+      .type('form')
+      .send({ item_name: 'avocado', category_key: '' });
+
+    const lines = await db.getTripItems(trip.id);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatchObject({ bought: 1, actual_cents: 2500 });
+  });
+
+  it('files a new item by its name when the category is left on Auto', async () => {
+    const trip = await db.createTrip({ name: 'Shop' });
+    for (const [k, l] of [
+      ['produce', 'Fruits and Veggies'],
+      ['dairy_eggs', 'Dairy and Eggs'],
+      ['pantry', 'Pantry'],
+    ]) {
+      await db.upsertCategory(k, l);
+    }
+    await request(app)
+      .post(`/trips/${trip.id}/items`)
+      .type('form')
+      .send({ item_name: 'Cheddar cheese', category_key: '' });
+
+    const [line] = await db.getTripItems(trip.id);
+    expect(line.category_key).toBe('dairy_eggs');
   });
 
   it('returns a 4xx error partial for a missing trip', async () => {
