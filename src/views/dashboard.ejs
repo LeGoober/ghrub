@@ -26,6 +26,25 @@
     </section>
   <% } %>
 
+  <a class="card scan-cta" href="/receipts">
+    <span class="scan-cta-title">Scan a receipt</span>
+    <span class="muted">Restock the kitchen and tick off your list from a till slip.</span>
+  </a>
+
+  <% if (lowStock && lowStock.length) { %>
+    <section class="card">
+      <h2>Running low</h2>
+      <div class="chip-row">
+        <% lowStock.slice(0, 12).forEach((row) => { %>
+          <span class="chip chip-low"><%= row.item_name %> · <%= row.qty_on_hand %> left</span>
+        <% }) %>
+      </div>
+      <p class="muted">
+        <%= lowStock.length > 12 ? `and ${lowStock.length - 12} more. ` : '' %>Open your next trip to add them in one tap.
+      </p>
+    </section>
+  <% } %>
+
   <section class="card">
     <h2>New trip</h2>
     <%- include('partials/trip-form', { stores }) %>

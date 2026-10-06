@@ -178,7 +178,9 @@ export function kitchenRouter(db) {
   router.delete(
     '/inventory/:itemId',
     wrap(async (req, res) => {
-      await db.setInventory(num(req.params.itemId), { qtyOnHand: 0, lowThreshold: 1 });
+      // Stop tracking it. Setting it to 0 (as this used to) left a row at or
+      // below its threshold, so a removed item showed up as "running low".
+      await db.deleteInventory(num(req.params.itemId));
       await renderInventory(res);
     })
   );

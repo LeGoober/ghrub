@@ -91,6 +91,10 @@ export async function cadence(db) {
     .filter(Boolean)
     .map((d) => Date.parse(`${String(d).slice(0, 10)}T00:00:00Z`))
     .filter((ms) => Number.isFinite(ms))
+    // Only shops that have happened. A trip planned for next week is not a
+    // gap in your habit — counting it printed "last shop: <a future date>"
+    // and pulled the suggested next shop date along with it.
+    .filter((ms) => ms <= Date.now())
     .sort((a, b) => a - b);
 
   if (stamps.length < 2) {

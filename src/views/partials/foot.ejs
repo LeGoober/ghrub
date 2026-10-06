@@ -56,7 +56,39 @@
       <% }) %>
     </nav>
 
+    <div id="toast" class="toast" aria-live="assertive"></div>
+
     <script>
+      // Errors land in #toast (see the htmx-config meta in head.ejs). Show them
+      // for a few seconds, and say so plainly when the request never arrived.
+      (() => {
+        const toast = document.getElementById('toast');
+        let timer;
+        const show = () => {
+          toast.classList.add('is-shown');
+          clearTimeout(timer);
+          timer = setTimeout(() => {
+            toast.classList.remove('is-shown');
+            toast.innerHTML = '';
+          }, 6000);
+        };
+        document.body.addEventListener('htmx:afterSwap', (event) => {
+          if (event.detail.target === toast) show();
+        });
+        document.body.addEventListener('htmx:sendError', () => {
+          toast.innerHTML = '';
+          const box = document.createElement('div');
+          box.className = 'error';
+          box.setAttribute('role', 'alert');
+          box.textContent = navigator.onLine
+            ? 'Could not reach ghrub. Nothing was saved — try again.'
+            : 'You are offline. Nothing was saved — reconnect and try again.';
+          toast.appendChild(box);
+          show();
+        });
+        toast.addEventListener('click', () => toast.classList.remove('is-shown'));
+      })();
+
       // Installability (M5). Registration is best-effort: the service worker
       // only caches the static shell, so a failure here costs nothing.
       if ('serviceWorker' in navigator) {
