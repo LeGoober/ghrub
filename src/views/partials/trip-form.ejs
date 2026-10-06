@@ -1,36 +1,44 @@
-<form method="post" action="/trips">
+<%
+  /* Dates are pre-filled in South African time — an empty date input renders
+     as "yyyy/mm/dd" on a phone, which reads as broken. A trip starts today and
+     lasts two weeks, which is how long your shops have tended to run. */
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Johannesburg' });
+  const plusDays = (n) =>
+    new Date(Date.parse(`${today}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
+%>
+<form method="post" action="/trips" class="form-stack">
   <label class="field">
     <span>Name</span>
-    <input name="name" required placeholder="e.g. Bambezela Spezial V5" />
+    <input name="name" required placeholder="e.g. Bambezela Spezial V5" autocomplete="off" enterkeyhint="next" />
   </label>
-  <div class="row">
+  <div class="field-row">
     <label class="field">
       <span>Starts</span>
-      <input type="date" name="start_date" />
+      <input type="date" name="start_date" value="<%= today %>" />
     </label>
     <label class="field">
       <span>Lasts until</span>
-      <input type="date" name="end_date" />
-    </label>
-    <label class="field">
-      <span>Shop day</span>
-      <input type="date" name="shop_date" />
+      <input type="date" name="end_date" value="<%= plusDays(13) %>" />
     </label>
   </div>
-  <div class="row">
+  <label class="field">
+    <span>Shop day</span>
+    <input type="date" name="shop_date" value="<%= today %>" />
+  </label>
+  <div class="field-row">
     <label class="field">
       <span>Budget (R)</span>
       <input type="number" inputmode="decimal" name="budget" min="0" step="0.01" placeholder="500" />
     </label>
     <label class="field">
-      <span>Target store</span>
+      <span>Store</span>
       <select name="target_store_id">
-        <option value="">— any —</option>
+        <option value="">Any</option>
         <% stores.forEach((s) => { %>
           <option value="<%= s.id %>"><%= s.name %></option>
         <% }) %>
       </select>
     </label>
   </div>
-  <button class="btn" type="submit">Create trip</button>
+  <button class="btn btn-lg" type="submit">Create trip</button>
 </form>

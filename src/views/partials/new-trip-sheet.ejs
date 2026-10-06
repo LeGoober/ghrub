@@ -1,0 +1,9 @@
+<dialog class="sheet" id="sheet-new-trip" aria-labelledby="new-trip-title">
+  <div class="sheet-panel">
+    <header class="sheet-head">
+      <h2 id="new-trip-title">New trip</h2>
+      <button class="icon-btn" type="button" data-close aria-label="Close"><%- include('icon', { name: 'close' }) %></button>
+    </header>
+    <%- include('trip-form', { stores }) %>
+  </div>
+</dialog>

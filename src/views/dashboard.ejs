@@ -1,52 +1,101 @@
 <%- include('partials/head', { title }) %>
-  <header class="topbar">
-    <h1>ghrub</h1>
-    <nav class="topbar-links">
-      <a class="btn ghost" href="/recipes">Recipes</a>
-      <a class="btn ghost" href="/inventory">Inventory</a>
-      <a class="btn ghost" href="/stores/prices">Prices</a>
-      <a class="btn ghost" href="/history">History</a>
-      <a class="btn ghost" href="/trips">All trips</a>
-    </nav>
+<%
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Johannesburg' });
+  const hour = Number(new Date().toLocaleString('en-ZA', { hour: 'numeric', hour12: false, timeZone: 'Africa/Johannesburg' }));
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const longDate = new Date().toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Africa/Johannesburg' });
+  const when = (iso) => {
+    if (!iso) return 'No shop day set';
+    const days = Math.round((Date.parse(`${iso}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000);
+    if (days === 0) return 'Shop day is today';
+    if (days === 1) return 'Shop day is tomorrow';
+    if (days > 1) return `Shop day in ${days} days`;
+    if (days === -1) return 'Shopped yesterday';
+    return `Shopped ${-days} days ago`;
+  };
+%>
+  <header class="app-bar app-bar-large">
+    <div class="app-bar-title">
+      <p class="eyebrow"><%= longDate %></p>
+      <h1><%= greeting %></h1>
+    </div>
   </header>
-  <p class="tagline">Your groceries, remembered.</p>
 
   <% if (active) { %>
-    <section class="card">
-      <h2>Next shop</h2>
-      <a class="big-link" href="/trips/<%= active.id %>"><%= active.name %></a>
-      <p class="muted">
-        <%= active.shop_date || active.start_date || 'no date set' %>
-        · <%= active.item_count %> items
+    <a class="card hero" href="/trips/<%= active.id %>">
+      <div class="hero-top">
+        <span class="eyebrow"><%= active.status === 'done' ? 'Last shop' : 'Next shop' %></span>
+        <span class="pill pill-<%= active.status %>"><%= active.status %></span>
+      </div>
+      <h2 class="hero-title"><%= active.name %></h2>
+      <p class="hero-meta">
+        <%- include('partials/icon', { name: 'calendar', cls: 'icon-sm' }) %>
+        <%= when(active.shop_date || active.start_date) %>
+        <% if (active.target_store_name) { %> · <%= active.target_store_name %><% } %>
       </p>
-    </section>
+      <% if (budget) { %>
+        <div class="hero-budget budget-<%= budget.state %>">
+          <div class="hero-figures">
+            <span class="hero-spent"><%= formatCents(budget.subtotalCents) %></span>
+            <span class="muted"><%= budget.budgetCents != null ? `of ${formatCents(budget.budgetCents)}` : 'no budget set' %></span>
+          </div>
+          <% if (budget.budgetCents != null) { %>
+            <div class="progress"><span style="width: <%= Math.min((budget.pct || 0) * 100, 100) %>%"></span></div>
+          <% } %>
+          <p class="hero-count"><%= budget.boughtCount %> of <%= budget.lineCount %> bought</p>
+        </div>
+      <% } %>
+      <span class="hero-cta">Open list <%- include('partials/icon', { name: 'chevron', cls: 'icon-sm' }) %></span>
+    </a>
+    <% if (active.status === 'done') { %>
+      <button class="btn btn-lg" type="button" data-sheet="new-trip">
+        <%- include('partials/icon', { name: 'plus', cls: 'icon-sm' }) %> Plan the next shop
+      </button>
+    <% } %>
   <% } else { %>
-    <section class="card">
-      <p class="muted">No trips yet — create your first one below.</p>
+    <section class="card empty-card">
+      <span class="empty-icon"><%- include('partials/icon', { name: 'basket' }) %></span>
+      <h2>No trips yet</h2>
+      <p class="muted">Plan your first shop: a list with a shop day, a budget and how long it should last.</p>
+      <button class="btn btn-lg" type="button" data-sheet="new-trip">New trip</button>
     </section>
   <% } %>
 
-  <a class="card scan-cta" href="/receipts">
-    <span class="scan-cta-title">Scan a receipt</span>
-    <span class="muted">Restock the kitchen and tick off your list from a till slip.</span>
-  </a>
+  <nav class="quick-grid" aria-label="Quick actions">
+    <a class="quick quick-accent" href="/receipts">
+      <span class="quick-icon"><%- include('partials/icon', { name: 'camera' }) %></span>
+      <span class="quick-label">Scan a receipt</span>
+    </a>
+    <button class="quick" type="button" data-sheet="new-trip">
+      <span class="quick-icon"><%- include('partials/icon', { name: 'plus' }) %></span>
+      <span class="quick-label">New trip</span>
+    </button>
+    <a class="quick" href="/inventory">
+      <span class="quick-icon"><%- include('partials/icon', { name: 'kitchen' }) %></span>
+      <span class="quick-label">Kitchen</span>
+    </a>
+    <a class="quick" href="/stores/prices">
+      <span class="quick-icon"><%- include('partials/icon', { name: 'tag' }) %></span>
+      <span class="quick-label">Prices</span>
+    </a>
+  </nav>
 
   <% if (lowStock && lowStock.length) { %>
     <section class="card">
-      <h2>Running low</h2>
+      <div class="card-head">
+        <h2>Running low</h2>
+        <a class="link" href="/inventory">Kitchen</a>
+      </div>
       <div class="chip-row">
         <% lowStock.slice(0, 12).forEach((row) => { %>
           <span class="chip chip-low"><%= row.item_name %> · <%= row.qty_on_hand %> left</span>
         <% }) %>
       </div>
-      <p class="muted">
-        <%= lowStock.length > 12 ? `and ${lowStock.length - 12} more. ` : '' %>Open your next trip to add them in one tap.
+      <p class="muted small">
+        <%= lowStock.length > 12 ? `and ${lowStock.length - 12} more. ` : '' %>They are suggested on your next trip.
       </p>
     </section>
   <% } %>
 
-  <section class="card">
-    <h2>New trip</h2>
-    <%- include('partials/trip-form', { stores }) %>
-  </section>
+  <%- include('partials/new-trip-sheet', { stores }) %>
 <%- include('partials/foot') %>
