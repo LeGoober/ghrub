@@ -1,9 +1,37 @@
+<%
+  /* The QR code on an SA slip is almost always a link or a reference, not the
+     items. Say what it held rather than pretending it was read. Only http(s)
+     links are rendered as links. */
+  const qrNote = qr && qr.kind === 'url'
+    ? { kind: 'url', url: qr.url }
+    : qr && qr.kind === 'text'
+      ? { kind: 'text', text: qr.text }
+      : null;
+%>
+<% if (qrNote) { %>
+  <section class="card qr-note">
+    <h2>About the QR code</h2>
+    <% if (qrNote.kind === 'url') { %>
+      <p class="muted">
+        The slip's QR code is a link, not the items — South African tills use it for e-receipts,
+        surveys and returns. <% if (result && result.items.length) { %>The items below were read from the photo instead.<% } %>
+      </p>
+      <p><a class="btn ghost small" href="<%= qrNote.url %>" target="_blank" rel="noopener noreferrer nofollow">Open what it points to</a></p>
+    <% } else { %>
+      <p class="muted">The QR code holds a reference rather than the items:</p>
+      <p><code class="qr-text"><%= qrNote.text %></code></p>
+    <% } %>
+  </section>
+<% } %>
+
 <% if (error) { %>
   <section class="card error-card">
     <h2>Could not read that</h2>
     <p class="error"><%= error %></p>
     <p class="muted">A flat slip in even light, with the whole thing in frame, reads best.</p>
   </section>
+<% } else if (!result) { %>
+  <% /* A QR-only scan with nothing itemised: the note above is the answer. */ %>
 <% } else if (!result.items.length) { %>
   <section class="card empty">
     <h2>Nothing to add</h2>
@@ -14,6 +42,13 @@
     </p>
   </section>
 <% } else { %>
+  <%
+    const unsure = result.items.filter((i) => !i.confident).length;
+    // Lines that do not add up to the slip's own total almost always mean a row
+    // was missed or misread — the most useful single check on the whole scan.
+    const gap = result.totalCents && result.linesCents != null ? result.totalCents - result.linesCents : null;
+    const defaultTrip = trips && trips.length ? trips[0] : null;
+  %>
   <form
     class="card review"
     hx-post="/receipts/apply"
@@ -28,6 +63,20 @@
         if (result.totalCents) { %> · slip total <%= formatCents(result.totalCents) %><% } %>.
       Untick anything you do not want, and fix whatever was misread.
     </p>
+
+    <% if (gap !== null && gap !== 0) { %>
+      <p class="review-gap" role="note">
+        These lines add up to <strong><%= formatCents(result.linesCents) %></strong>, which is
+        <%= formatCents(Math.abs(gap)) %> <%= gap > 0 ? 'less' : 'more' %> than the slip's total —
+        <%= gap > 0 ? 'a line may have been missed' : 'a price may have been misread' %>.
+      </p>
+    <% } else if (gap === 0) { %>
+      <p class="review-ok" role="note">The lines add up to the slip's total exactly.</p>
+    <% } %>
+
+    <% if (unsure) { %>
+      <p class="muted"><%= unsure %> highlighted row<%= unsure === 1 ? ' is' : 's are' %> worth a check — new to your catalog, or hard to read.</p>
+    <% } %>
     <% if (result.dropped) { %>
       <p class="muted"><%= result.dropped %> line<%= result.dropped === 1 ? '' : 's' %> could not be read and <%= result.dropped === 1 ? 'was' : 'were' %> left out.</p>
     <% } %>
@@ -38,6 +87,7 @@
       <% result.items.forEach((item, i) => { %>
         <li class="review-row<%= item.confident ? '' : ' is-unsure' %>">
           <input type="hidden" name="idx" value="<%= i %>" />
+          <% if (item.raw) { %><input type="hidden" name="raw_<%= i %>" value="<%= item.raw %>" /><% } %>
           <label class="review-keep">
             <input type="checkbox" name="keep" value="<%= i %>" checked />
             <span class="visually-hidden">Add <%= item.name %></span>
@@ -45,11 +95,11 @@
           <div class="review-fields">
             <label class="field grow">
               <span class="visually-hidden">Item</span>
-              <input name="name_<%= i %>" value="<%= item.name %>" required />
+              <input name="name_<%= i %>" value="<%= item.name %>" required autocomplete="off" />
             </label>
             <label class="field field-qty">
               <span>Qty</span>
-              <input name="qty_<%= i %>" type="number" min="0.1" step="0.1" value="<%= item.qty %>" required />
+              <input name="qty_<%= i %>" type="number" min="0.1" step="0.1" inputmode="decimal" value="<%= item.qty %>" required />
             </label>
             <label class="field field-price">
               <span>Each</span>
@@ -71,18 +121,28 @@
               </select>
             </label>
           </div>
+          <% if (item.raw && item.raw.toLowerCase() !== item.name.toLowerCase()) { %>
+            <p class="review-raw">On the slip: <span><%= item.raw %></span><% if (item.matched === 'alias') { %> · learnt<% } %></p>
+          <% } %>
           <% if (!item.confident) { %>
-            <p class="review-flag">Hard to read — worth a check.</p>
+            <p class="review-flag"><%= item.matched ? 'Hard to read — worth a check.' : 'New to your catalog — check the name and category.' %></p>
           <% } %>
         </li>
       <% }) %>
     </ul>
 
     <div class="review-prices">
-      <label class="check">
-        <input type="checkbox" name="record_prices" value="1" checked />
-        <span>Also remember these prices</span>
-      </label>
+      <% if (trips && trips.length) { %>
+        <label class="field">
+          <span>Tick off on a trip</span>
+          <select name="trip_id">
+            <option value="">— just restock the kitchen —</option>
+            <% trips.forEach((t) => { %>
+              <option value="<%= t.id %>"<%= defaultTrip && t.id === defaultTrip.id ? ' selected' : '' %>><%= t.name %><%= t.status === 'shopping' ? ' (shopping now)' : '' %></option>
+            <% }) %>
+          </select>
+        </label>
+      <% } %>
       <label class="field">
         <span>Store</span>
         <select name="store_id">
@@ -92,8 +152,15 @@
           <% }) %>
         </select>
       </label>
+      <label class="check">
+        <input type="checkbox" name="record_prices" value="1" checked />
+        <span>Also remember these prices</span>
+      </label>
     </div>
 
     <button class="btn btn-lg" type="submit">Add to my kitchen</button>
+    <p class="muted review-engine">
+      <% if (result.engine === 'claude') { %>Read by Claude.<% } else if (result.engine === 'qr') { %>Read from the slip's QR code.<% } else { %>Read on this phone — the photo never left it.<% } %>
+    </p>
   </form>
 <% } %>

@@ -26,6 +26,16 @@ export async function createApp(db) {
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json());
   app.use('/static', express.static(path.join(__dirname, '..', 'public')));
+
+  // The receipt reader's engine, served by ghrub itself so scanning needs no
+  // CDN or third party: Tesseract (WASM OCR), its English model, and jsQR.
+  // Versions are pinned in package-lock, so the files are safe to cache hard.
+  const modules = path.join(__dirname, '..', 'node_modules');
+  const vendor = (dir) => express.static(path.join(modules, dir), { maxAge: '30d' });
+  app.use('/static/vendor/tesseract', vendor('tesseract.js/dist'));
+  app.use('/static/vendor/tesseract-core', vendor('tesseract.js-core'));
+  app.use('/static/vendor/tesseract-lang', vendor('@tesseract.js-data/eng/4.0.0_best_int'));
+  app.use('/static/vendor/jsqr', vendor('jsqr/dist'));
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, 'views'));
 
