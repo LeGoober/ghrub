@@ -55,6 +55,17 @@ GET    /trips/:id/compare                -> partial: per-store basket totals tab
 GET    /healthz   -> 200 {ok:true}   (Render health check; no DB dependency)
 ```
 
+### Receipts
+```
+GET    /receipts               -> capture page (camera / gallery)
+POST   /receipts/read          body: {lines:[{text,conf}], qr} -> review form
+                               (OCR runs in the browser; this route only parses text)
+POST   /receipts/scan          body: {image: dataURL} -> review form via Claude
+                               (only when ANTHROPIC_API_KEY is set)
+POST   /receipts/apply         reviewed rows -> restock, prices, aliases,
+                               optional trip tick-off -> partial
+```
+
 ### v0.2
 ```
 GET/POST /recipes ...          -> catalog + editor

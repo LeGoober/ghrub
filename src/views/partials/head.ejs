@@ -14,6 +14,14 @@
     <link rel="apple-touch-icon" href="/static/icon.svg" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="ghrub" />
+    <!-- htmx 2 throws 4xx/5xx bodies away by default, which silently hid every
+         validation message. Errors are swapped into the #toast region instead
+         of the request's own target, so a "name is required" can never replace
+         the list it was about. -->
+    <meta
+      name="htmx-config"
+      content='{"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"[45]..","swap":true,"error":true,"target":"#toast","swapOverride":"innerHTML"}]}'
+    />
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <link rel="stylesheet" href="/static/css/app.css" />
   </head>

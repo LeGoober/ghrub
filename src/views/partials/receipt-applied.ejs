@@ -11,6 +11,16 @@
       %>.
     </p>
 
+    <% if (trip) { %>
+      <p class="applied-trip">
+        On <a href="/trips/<%= trip.id %>"><strong><%= trip.name %></strong></a>:
+        <%= ticked.length %> ticked off<% if (added.length) { %>, <%= added.length %> added that were not on the list<% } %>.
+      </p>
+    <% } %>
+    <% if (learnt) { %>
+      <p class="muted">Remembered how this till spells <%= learnt %> item<%= learnt === 1 ? '' : 's' %>, so the next slip matches <%= learnt === 1 ? 'it' : 'them' %> straight away.</p>
+    <% } %>
+
     <ul class="applied-list">
       <% stocked.forEach((row) => { %>
         <li>
@@ -28,7 +38,8 @@
     <% } %>
 
     <div class="applied-actions">
-      <a class="btn" href="/inventory">See my inventory</a>
+      <% if (trip) { %><a class="btn" href="/trips/<%= trip.id %>">Open the trip</a><% } %>
+      <a class="btn<%= trip ? ' ghost' : '' %>" href="/inventory">See my inventory</a>
       <a class="btn ghost" href="/receipts">Scan another</a>
     </div>
   <% } %>

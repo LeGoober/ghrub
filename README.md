@@ -49,6 +49,27 @@ three `gh secret set` commands that close it.
 habit buckets, store comparison, meal plan) · `/history` spend analytics ·
 `/stores/prices` price book · `/recipes` · `/inventory`
 
+## Receipt scanning — local, no LLM
+`/receipts` reads a till slip **on the phone**: Tesseract (open-source OCR,
+compiled to WebAssembly) turns the photo into text in the browser, and
+[`src/lib/receipt-text.js`](src/lib/receipt-text.js) applies the till-slip rules
+(prices, `2 @ 14.99`, weighed lines, savings, the TOTAL, the date, the
+retailer) and matches each line to your own catalog. No API key, no third
+party, and the photo never leaves the device. The engine (~6 MB) is served by
+ghrub itself and cached after the first scan.
+
+You review every line before anything is saved. Applying restocks the kitchen,
+records the prices, and can tick the slip off against an open trip. Each
+accepted line teaches ghrub that till's spelling (`item_alias`), so the next
+slip reads it right.
+
+QR codes are decoded too, but South African slips carry no itemised fiscal QR
+— it is a link to an e-receipt or survey, and ghrub says so. An itemised QR
+(JSON or `name;qty;price` rows) is read directly.
+
+Setting `ANTHROPIC_API_KEY` adds an optional "Ask Claude instead" button for
+slips the local reader struggles with. Nothing requires it.
+
 ## The optional LLM layer
 "Explain this shop" is **off by default**. It needs `ENABLE_LLM=true` *and*
 `ANTHROPIC_API_KEY`; without both, the route 404s and nothing else changes.

@@ -11,7 +11,11 @@
  *     cached copy of someone's list.
  */
 
-const CACHE = 'ghrub-shell-v1';
+// Bump on any release that changes the shell. A changed sw.js is what makes
+// the browser install a new worker at all, and activate() then drops the old
+// cache — v1 was never bumped after the mobile rebuild, so installed copies
+// kept serving the pre-mobile stylesheet.
+const CACHE = 'ghrub-shell-v2';
 const SHELL = ['/static/css/app.css', '/static/icon.svg', '/static/manifest.webmanifest'];
 
 const OFFLINE_PAGE = `<!doctype html>
@@ -50,10 +54,26 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Static shell: cache first, it never changes within a release.
-  if (url.pathname.startsWith('/static/')) {
+  // The receipt reader's engine (~6MB of WASM and model) is version-pinned and
+  // never changes in place: cache first, so the second scan downloads nothing.
+  if (url.pathname.startsWith('/static/vendor/')) {
     event.respondWith(
       caches.match(request).then((hit) => hit || fetch(request).then(cachePut(request)))
+    );
+    return;
+  }
+
+  // The rest of the shell: serve the cached copy instantly, and refresh it in
+  // the background, so a release reaches installed phones on the next visit
+  // even if nobody remembers to bump CACHE.
+  if (url.pathname.startsWith('/static/')) {
+    event.respondWith(
+      caches.match(request).then((hit) => {
+        const fresh = fetch(request)
+          .then(cachePut(request))
+          .catch(() => hit);
+        return hit || fresh;
+      })
     );
     return;
   }
