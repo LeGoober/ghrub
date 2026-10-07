@@ -1,44 +1,49 @@
 <%- include('../partials/head', { title }) %>
-  <header class="topbar">
-    <h1>Trips</h1>
-    <a class="btn ghost" href="/">← Home</a>
+  <header class="app-bar app-bar-large">
+    <div class="app-bar-title">
+      <h1>Trips</h1>
+    </div>
+    <button class="btn btn-sm" type="button" data-sheet="new-trip">
+      <%- include('../partials/icon', { name: 'plus', cls: 'icon-sm' }) %> New trip
+    </button>
   </header>
-
-  <section class="card">
-    <h2>New trip</h2>
-    <%- include('../partials/trip-form', { stores }) %>
-  </section>
 
   <% if (error) { %>
     <div class="error" role="alert"><%= error %></div>
   <% } %>
 
-  <h2 class="section-title">History</h2>
   <% if (trips.length) { %>
     <ul class="trip-list">
       <% trips.forEach((t) => { %>
-        <li class="card trip-card">
-          <div class="trip-card-body">
-            <a class="big-link" href="/trips/<%= t.id %>"><%= t.name %></a>
-            <p class="muted">
-              <%= t.shop_date || t.start_date || 'no date' %> · <%= t.item_count %> items
-              <% if (t.budget && t.budget.budgetCents != null) { %>
-                · <%= t.budget.state === 'over' ? 'over budget' : t.budget.state === 'near' ? 'near budget' : 'on track' %>
+        <% const b = t.budget; %>
+        <li>
+          <a class="card trip-card" href="/trips/<%= t.id %>">
+            <div class="trip-card-top">
+              <span class="trip-card-name"><%= t.name %></span>
+              <span class="pill pill-<%= t.status %>"><%= t.status %></span>
+            </div>
+            <p class="trip-card-meta">
+              <%= t.shop_date || t.start_date || 'No date' %> · <%= t.item_count %> item<%= t.item_count === 1 ? '' : 's' %>
+              <% if (b && b.budgetCents != null) { %>
+                · <span class="budget-word budget-<%= b.state %>"><%= b.state === 'over' ? 'over budget' : b.state === 'near' ? 'near budget' : 'on track' %></span>
               <% } %>
             </p>
-          </div>
-          <form
-            hx-delete="/trips/<%= t.id %>"
-            hx-confirm="Delete this trip and all its items?"
-            hx-target="body"
-            hx-swap="innerHTML"
-          >
-            <button class="btn danger ghost" type="submit">Delete</button>
-          </form>
+            <% if (b && b.budgetCents != null) { %>
+              <div class="progress progress-thin budget-<%= b.state %>"><span style="width: <%= Math.min((b.pct || 0) * 100, 100) %>%"></span></div>
+              <p class="trip-card-figures"><%= formatCents(b.subtotalCents) %> <span class="muted">of <%= formatCents(b.budgetCents) %></span></p>
+            <% } %>
+          </a>
         </li>
       <% }) %>
     </ul>
   <% } else { %>
-    <p class="muted">No trips yet — create one above.</p>
+    <section class="card empty-card">
+      <span class="empty-icon"><%- include('../partials/icon', { name: 'basket' }) %></span>
+      <h2>No trips yet</h2>
+      <p class="muted">Create one and start adding what you need.</p>
+      <button class="btn btn-lg" type="button" data-sheet="new-trip">New trip</button>
+    </section>
   <% } %>
+
+  <%- include('../partials/new-trip-sheet', { stores }) %>
 <%- include('../partials/foot') %>

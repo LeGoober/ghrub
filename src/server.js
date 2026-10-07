@@ -36,6 +36,7 @@ export async function createApp(db) {
   app.use('/static/vendor/tesseract-core', vendor('tesseract.js-core'));
   app.use('/static/vendor/tesseract-lang', vendor('@tesseract.js-data/eng/4.0.0_best_int'));
   app.use('/static/vendor/jsqr', vendor('jsqr/dist'));
+  app.use('/static/vendor/htmx', vendor('htmx.org/dist'));
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, 'views'));
 

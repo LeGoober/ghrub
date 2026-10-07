@@ -257,7 +257,7 @@ describe('recipes -> inventory loop (M4)', () => {
 
       const grid = await request(app).get(`/trips/${trip.id}/plan`);
       expect(grid.status).toBe(200);
-      expect((grid.text.match(/plan-day/g) || []).length).toBe(7);
+      expect((grid.text.match(/class="plan-day"/g) || []).length).toBe(7);
 
       const set = await request(app)
         .post(`/trips/${trip.id}/plan`)

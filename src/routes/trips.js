@@ -89,6 +89,7 @@ export function tripsRouter(db) {
       trips,
       stores,
       error: error || null,
+      formatCents,
     });
   };
 
@@ -131,7 +132,16 @@ export function tripsRouter(db) {
         db.lowStockItems(),
       ]);
       const active = trips.find((t) => t.status !== 'done') || trips[0] || null;
-      res.render('dashboard', { title: 'ghrub', active, stores, lowStock });
+      const budget = active ? await db.budgetForTrip(active.id) : null;
+      res.render('dashboard', {
+        title: 'ghrub',
+        active,
+        budget,
+        stores,
+        lowStock,
+        tripCount: trips.length,
+        formatCents,
+      });
     })
   );
 
@@ -171,7 +181,13 @@ export function tripsRouter(db) {
     wrap(async (req, res) => {
       const trip = await db.getTrip(Number(req.params.id));
       if (!trip) {
-        res.status(404).render('partials/error', { status: 404, message: 'Trip not found.' });
+        // A navigation, so a whole page with the tab bar — a bare fragment
+        // left an installed app with no way back.
+        res.status(404).render('error-page', {
+          title: 'Not found',
+          status: 404,
+          message: 'Trip not found. It may have been deleted.',
+        });
         return;
       }
       const [budget, items, buckets, cadenceInfo, stores, categories] = await Promise.all([

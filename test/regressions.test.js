@@ -56,6 +56,32 @@ describe('audit regressions', () => {
     expect(res.text).toContain('id="toast"');
   });
 
+  it('an unseeded database can still file an item (production, 2026-10-06)', async () => {
+    // Production's Neon database was never seeded: the Category select was
+    // empty and every add failed the foreign key. Reference data now arrives
+    // with the migration, so a brand-new database works out of the box.
+    const fresh = await createDatabase(':memory:');
+    const freshApp = await createApp(fresh);
+    const trip = await fresh.createTrip({ name: 'Kgwedi ya Aug' });
+
+    const page = await request(freshApp).get(`/trips/${trip.id}`);
+    expect(page.text).toContain('<option value="produce">Fruits and Veggies</option>');
+
+    const add = await request(freshApp)
+      .post(`/trips/${trip.id}/items`)
+      .type('form')
+      .send({ item_name: 'GG', category_key: '' });
+    expect(add.status).toBe(200);
+    expect((await fresh.getTripItems(trip.id)).map((l) => l.item_name)).toEqual(['GG']);
+
+    const track = await request(freshApp)
+      .post('/inventory')
+      .type('form')
+      .send({ item_name: 'Eggs', qty_on_hand: '12', unit: 'carton', low_threshold: '1' });
+    expect(track.status).toBe(200);
+    expect(track.text).toContain('Eggs');
+  });
+
   it('the dashboard shows what is running low', async () => {
     const eggs = await db.getOrCreateItem('Eggs', 'dairy_eggs');
     await db.setInventory(eggs.id, { qtyOnHand: 1, lowThreshold: 2 });

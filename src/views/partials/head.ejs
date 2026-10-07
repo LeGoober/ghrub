@@ -5,14 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title><%= title %></title>
     <meta name="description" content="Your groceries, remembered." />
+    <meta name="color-scheme" content="light dark" />
     <!-- The browser chrome follows the app's theme rather than staying green
          behind a dark UI. -->
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4f2ec" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#12110f" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6f4ee" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111210" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/static/icon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/static/icon.svg" />
+    <!-- iOS ignores an SVG touch icon and screenshots the page instead, so the
+         home-screen icon has to be a PNG. -->
+    <link rel="apple-touch-icon" href="/static/icon-180.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="ghrub" />
     <!-- htmx 2 throws 4xx/5xx bodies away by default, which silently hid every
          validation message. Errors are swapped into the #toast region instead
@@ -22,7 +27,9 @@
       name="htmx-config"
       content='{"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"[45]..","swap":true,"error":true,"target":"#toast","swapOverride":"innerHTML"}]}'
     />
-    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <!-- Served by ghrub, not a CDN: an installed app should start with nothing
+         but its own server. -->
+    <script src="/static/vendor/htmx/htmx.min.js"></script>
     <link rel="stylesheet" href="/static/css/app.css" />
   </head>
   <body>

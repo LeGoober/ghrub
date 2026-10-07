@@ -1,75 +1,85 @@
-<li class="line <%= line.bought ? 'bought' : '' %>">
+<li class="line<%= line.bought ? ' bought' : '' %>" data-keep-open="line-<%= line.id %>">
   <form
     class="line-form"
     hx-patch="/trips/<%= trip.id %>/items/<%= line.id %>"
     hx-target="#trip-lists"
     hx-swap="innerHTML"
   >
-    <label class="check line-check">
-      <input
-        type="checkbox"
-        name="bought"
-        value="1"
-        <%= line.bought ? 'checked' : '' %>
-        onchange="this.form.requestSubmit()"
-      />
-      <span class="visually-hidden">Bought <%= line.item_name %></span>
-    </label>
-    <span class="name"><%= line.item_name %></span>
-    <span class="price"><%= formatCents(line.actual_cents ?? line.est_cents) %></span>
-    <button
-      class="btn danger ghost line-remove"
-      type="button"
-      aria-label="Remove <%= line.item_name %>"
-      hx-delete="/trips/<%= trip.id %>/items/<%= line.id %>"
-      hx-confirm="Remove <%= line.item_name %> from the list?"
-      hx-target="#trip-lists"
-      hx-swap="innerHTML"
-    >
-      ✕
-    </button>
+    <div class="line-main">
+      <label class="line-check">
+        <input
+          type="checkbox"
+          name="bought"
+          value="1"
+          <%= line.bought ? 'checked' : '' %>
+          onchange="this.form.requestSubmit()"
+        />
+        <span class="tick" aria-hidden="true"><%- include('icon', { name: 'check' }) %></span>
+        <span class="visually-hidden">Bought <%= line.item_name %></span>
+      </label>
+      <button class="line-toggle" type="button" data-toggle-open aria-expanded="false">
+        <span class="name"><%= line.item_name %></span>
+        <span class="line-meta">
+          <%= line.qty != 1 ? `× ${line.qty}` : '' %><%= line.qty != 1 && line.actual_cents == null && line.est_cents != null ? ' · ' : '' %><%= line.actual_cents == null && line.est_cents != null ? 'estimate' : '' %>
+        </span>
+      </button>
+      <span class="price"><%= formatCents(line.actual_cents ?? line.est_cents) %></span>
+    </div>
+
     <%
       /* Visible labels, not placeholders: once a value is filled in, a
          placeholder is gone, and "20.00 | 20.00" says nothing about which is
          the estimate and which is what you paid. */
     %>
-    <div class="line-fields">
-      <label class="line-field">
-        <span>Qty</span>
-        <input
-          type="number"
-          name="qty"
-          min="0"
-          step="0.5"
-          inputmode="decimal"
-          value="<%= line.qty %>"
-          onchange="this.form.requestSubmit()"
-        />
-      </label>
-      <label class="line-field">
-        <span>Est R</span>
-        <input
-          type="number"
-          name="est"
-          min="0"
-          step="0.01"
-          inputmode="decimal"
-          value="<%= line.est_cents != null ? (line.est_cents / 100).toFixed(2) : '' %>"
-          onchange="this.form.requestSubmit()"
-        />
-      </label>
-      <label class="line-field">
-        <span>Paid R</span>
-        <input
-          type="number"
-          name="actual"
-          min="0"
-          step="0.01"
-          inputmode="decimal"
-          value="<%= line.actual_cents != null ? (line.actual_cents / 100).toFixed(2) : '' %>"
-          onchange="this.form.requestSubmit()"
-        />
-      </label>
+    <div class="line-edit">
+      <div class="line-fields">
+        <label class="field">
+          <span>Qty</span>
+          <input
+            type="number"
+            name="qty"
+            min="0"
+            step="0.5"
+            inputmode="decimal"
+            value="<%= line.qty %>"
+            onchange="this.form.requestSubmit()"
+          />
+        </label>
+        <label class="field">
+          <span>Estimate R</span>
+          <input
+            type="number"
+            name="est"
+            min="0"
+            step="0.01"
+            inputmode="decimal"
+            value="<%= line.est_cents != null ? (line.est_cents / 100).toFixed(2) : '' %>"
+            onchange="this.form.requestSubmit()"
+          />
+        </label>
+        <label class="field">
+          <span>Paid R</span>
+          <input
+            type="number"
+            name="actual"
+            min="0"
+            step="0.01"
+            inputmode="decimal"
+            value="<%= line.actual_cents != null ? (line.actual_cents / 100).toFixed(2) : '' %>"
+            onchange="this.form.requestSubmit()"
+          />
+        </label>
+      </div>
+      <button
+        class="btn btn-danger-ghost btn-sm line-remove"
+        type="button"
+        hx-delete="/trips/<%= trip.id %>/items/<%= line.id %>"
+        hx-confirm="Remove <%= line.item_name %> from the list?"
+        hx-target="#trip-lists"
+        hx-swap="innerHTML"
+      >
+        <%- include('icon', { name: 'trash', cls: 'icon-sm' }) %> Remove
+      </button>
     </div>
   </form>
 </li>

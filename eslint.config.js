@@ -37,6 +37,7 @@ export default [
         fetch: 'readonly',
         Response: 'readonly',
         URL: 'readonly',
+        setTimeout: 'readonly',
       },
     },
   },
