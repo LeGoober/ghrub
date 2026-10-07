@@ -39,11 +39,11 @@
   <% } %>
 
   <h3 class="section-title">Recently eaten</h3>
-  <ul class="meal-history">
+  <ul class="card list meal-history">
     <% recentMeals.forEach((meal) => { %>
-      <li>
+      <li class="row">
+        <span class="row-title"><%= meal.recipe_name || meal.free_text %></span>
         <span class="meal-date"><%= meal.eaten_date %></span>
-        <span><%= meal.recipe_name || meal.free_text %></span>
       </li>
     <% }) %>
   </ul>

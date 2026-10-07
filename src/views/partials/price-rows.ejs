@@ -4,29 +4,18 @@
   <% } %>
 
   <% if (!prices.length) { %>
-    <p class="muted empty">Nothing recorded yet — add your first price above.</p>
+    <p class="muted small">Nothing recorded yet — add your first price above.</p>
   <% } else { %>
-    <div class="table-scroll">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th scope="col">Item</th>
-            <th scope="col">Store</th>
-            <th scope="col" class="num">Price</th>
-            <th scope="col">Seen</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% prices.forEach((row) => { %>
-            <tr>
-              <th scope="row"><%= row.item_name %></th>
-              <td><%= row.store_name %></td>
-              <td class="num"><%= formatCents(row.price_cents) %></td>
-              <td class="seen-date"><%= row.seen_date %></td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    </div>
+    <ul class="card list">
+      <% prices.forEach((row) => { %>
+        <li class="row">
+          <div class="row-main">
+            <span class="row-title"><%= row.item_name %></span>
+            <span class="row-meta"><%= row.store_name %> · <span class="seen-date"><%= row.seen_date %></span></span>
+          </div>
+          <span class="row-value"><%= formatCents(row.price_cents) %></span>
+        </li>
+      <% }) %>
+    </ul>
   <% } %>
 </div>

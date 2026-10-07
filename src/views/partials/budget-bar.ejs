@@ -1,23 +1,26 @@
 <div
   id="budget-bar"
-  class="budget-bar <%= budget.state %>"
+  class="budget-bar budget-<%= budget.state %>"
   <%- oob ? 'hx-swap-oob="true"' : '' %>
 >
   <div class="budget-row">
-    <strong class="budget-spent"><%= formatCents(budget.subtotalCents) %></strong>
-    <span class="budget-of">of <%= budget.budgetCents != null ? formatCents(budget.budgetCents) : 'no budget set' %></span>
-    <% if (budget.pct != null) { %>
-      <span class="budget-pct"><%= Math.round(budget.pct * 100) %>%</span>
-    <% } %>
-    <span class="budget-state">
-      <%= budget.state === 'over' ? 'over budget' : budget.state === 'near' ? 'near budget' : budget.state === 'ok' ? 'on track' : '' %>
-    </span>
+    <div class="budget-figures">
+      <strong class="budget-spent"><%= formatCents(budget.subtotalCents) %></strong>
+      <span class="budget-of">of <%= budget.budgetCents != null ? formatCents(budget.budgetCents) : 'no budget set' %></span>
+    </div>
+    <div class="budget-side">
+      <% if (budget.pct != null) { %>
+        <span class="budget-pct"><%= Math.round(budget.pct * 100) %>%</span>
+      <% } %>
+      <span class="budget-state">
+        <%= budget.state === 'over' ? 'over budget' : budget.state === 'near' ? 'near budget' : budget.state === 'ok' ? 'on track' : '' %>
+      </span>
+    </div>
   </div>
   <% if (budget.budgetCents != null) { %>
-    <div class="budget-track">
-      <div class="budget-fill" style="width: <%= Math.min(budget.pct * 100, 100) %>%"></div>
-    </div>
+    <div class="progress"><span style="width: <%= Math.min(budget.pct * 100, 100) %>%"></span></div>
   <% } %>
+  <p class="budget-count"><%= budget.boughtCount %> of <%= budget.lineCount %> bought</p>
   <% if (budget.byCategory.length) { %>
     <div class="budget-cats">
       <% budget.byCategory.forEach((c) => { %>

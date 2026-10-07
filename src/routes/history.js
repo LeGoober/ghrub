@@ -19,8 +19,10 @@ export function historyRouter(db) {
         title: 'Spend history',
         history,
         cadence: cadenceInfo,
-        spendChart: spendPerTripChart(history.trips),
-        categoryChart: categorySpendChart(history.byCategory),
+        // Drawn at phone width (docs/07): SVG text scales with the viewBox, so a
+        // 680-wide chart squeezed onto a 345px card set its labels at ~6px.
+        spendChart: spendPerTripChart(history.trips, { width: 440, height: 240 }),
+        categoryChart: categorySpendChart(history.byCategory, { width: 400 }),
         formatCents,
       });
     })

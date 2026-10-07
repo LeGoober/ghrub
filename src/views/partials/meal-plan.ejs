@@ -1,57 +1,75 @@
 <section class="card meal-plan" id="meal-plan">
-  <h2>Meal plan</h2>
+  <%
+    const SLOT_LABELS = { breakfast: 'Breakfast', lunch: 'Lunch', lunch2: 'Lunch 2', dinner: 'Dinner', dessert: 'Dessert' };
+    const recipeName = new Map(recipes.map((r) => [r.id, r.name]));
+    const planned = grid.days.reduce(
+      (n, day) => n + grid.slots.filter((slot) => grid.cells.get(day.iso + '|' + slot)?.recipe_id).length,
+      0
+    );
+  %>
+  <details class="plan" data-keep-open="meal-plan">
+    <summary class="card-head plan-summary">
+      <h2><%- include('icon', { name: 'calendar', cls: 'icon-sm icon-accent' }) %> Meal plan</h2>
+      <span class="muted small"><%= grid.days.length ? `${planned} planned` : 'needs dates' %></span>
+      <%- include('icon', { name: 'down', cls: 'icon-sm disclosure' }) %>
+    </summary>
 
-  <% if (!grid.days.length) { %>
-    <p class="muted small">
-      Set this trip's start and "lasts until" dates above and a planning grid appears here.
-    </p>
-  <% } else { %>
-    <p class="muted small">
-      One cell per meal across the trip period. Planned recipes are a reminder —
-      stock only moves when you log a meal as eaten on
-      <a href="/recipes">Recipes</a>.
-    </p>
-    <div class="table-scroll">
-      <table class="data-table plan-grid">
-        <thead>
-          <tr>
-            <th scope="col">Day</th>
-            <% grid.slots.forEach((slot) => { %>
-              <th scope="col"><%= slot === 'lunch2' ? 'lunch 2' : slot %></th>
-            <% }) %>
-          </tr>
-        </thead>
-        <tbody>
-          <% grid.days.forEach((day) => { %>
-            <tr>
-              <th scope="row" class="plan-day"><%= day.label %></th>
-              <% grid.slots.forEach((slot) => { %>
-                <% const cell = grid.cells.get(day.iso + '|' + slot); %>
-                <td class="plan-cell">
+    <% if (!grid.days.length) { %>
+      <p class="muted small">
+        Set this trip's start and "lasts until" dates in its settings (⋯) and a day-by-day plan appears here.
+      </p>
+    <% } else { %>
+      <p class="muted small">
+        Planned recipes are a reminder — stock only moves when you log a meal as eaten on
+        <a href="/recipes">Recipes</a>.
+      </p>
+      <ul class="plan-days">
+        <% grid.days.forEach((day) => { %>
+          <%
+            const meals = grid.slots
+              .map((slot) => grid.cells.get(day.iso + '|' + slot))
+              .filter((cell) => cell && cell.recipe_id)
+              .map((cell) => recipeName.get(cell.recipe_id))
+              .filter(Boolean);
+          %>
+          <li>
+            <details class="plan-day" data-keep-open="plan-<%= day.iso %>">
+              <summary>
+                <span class="plan-day-label"><%= day.label %></span>
+                <span class="plan-day-meals<%= meals.length ? '' : ' muted' %>"><%= meals.length ? meals.join(' · ') : 'Nothing planned' %></span>
+                <%- include('icon', { name: 'down', cls: 'icon-sm disclosure' }) %>
+              </summary>
+              <div class="plan-slots">
+                <% grid.slots.forEach((slot) => { %>
+                  <% const cell = grid.cells.get(day.iso + '|' + slot); %>
                   <form
+                    class="plan-slot"
                     hx-post="/trips/<%= trip.id %>/plan"
                     hx-target="#meal-plan"
                     hx-swap="outerHTML"
                   >
                     <input type="hidden" name="day" value="<%= day.iso %>" />
                     <input type="hidden" name="slot" value="<%= slot %>" />
-                    <select
-                      name="recipe_id"
-                      aria-label="<%= day.label %> <%= slot %>"
-                      onchange="this.form.requestSubmit()"
-                    >
-                      <option value="">—</option>
-                      <% recipes.forEach((r) => { %>
-                        <option value="<%= r.id %>" <%= cell && cell.recipe_id === r.id ? 'selected' : '' %>><%= r.name %></option>
-                      <% }) %>
-                    </select>
+                    <label class="field field-inline">
+                      <span><%= SLOT_LABELS[slot] || slot %></span>
+                      <select
+                        name="recipe_id"
+                        aria-label="<%= day.label %> <%= slot %>"
+                        onchange="this.form.requestSubmit()"
+                      >
+                        <option value="">—</option>
+                        <% recipes.forEach((r) => { %>
+                          <option value="<%= r.id %>" <%= cell && cell.recipe_id === r.id ? 'selected' : '' %>><%= r.name %></option>
+                        <% }) %>
+                      </select>
+                    </label>
                   </form>
-                </td>
-              <% }) %>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    </div>
-  <% } %>
+                <% }) %>
+              </div>
+            </details>
+          </li>
+        <% }) %>
+      </ul>
+    <% } %>
+  </details>
 </section>

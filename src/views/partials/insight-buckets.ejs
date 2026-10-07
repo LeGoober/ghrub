@@ -1,17 +1,39 @@
-<div
+<%
+  /* Only buckets with something in them are shown — four empty cards above an
+     empty list was most of the trip screen on a new account. */
+  const filled = buckets.filter((b) => b.rows.length);
+  const day = (iso) =>
+    iso
+      ? new Date(`${String(iso).slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-ZA', {
+          weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC',
+        })
+      : '';
+%>
+<section
   id="insight-buckets"
-  class="insight-buckets"
+  class="card suggestions<%= filled.length ? '' : ' is-quiet' %>"
   <%- oob ? 'hx-swap-oob="true"' : '' %>
 >
+  <div class="card-head">
+    <h2><%- include('icon', { name: 'spark', cls: 'icon-sm icon-accent' }) %> Suggestions</h2>
+  </div>
+
   <% if (cadence.medianGapDays) { %>
     <p class="cadence-hint">
       You shop about every <strong><%= cadence.medianGapDays %> days</strong>.
-      Last one was <%= cadence.lastShopDate %> — next is due around
-      <strong><%= cadence.suggestedNextShopDate %></strong>.
+      Last one was <%= day(cadence.lastShopDate) %> — next is due around
+      <strong><%= day(cadence.suggestedNextShopDate) %></strong>.
     </p>
   <% } %>
 
-  <% buckets.forEach((bucket) => { %>
+  <% if (!filled.length) { %>
+    <p class="muted small">
+      Nothing to suggest yet. Shop a few trips and <a href="/inventory">track what you have at home</a>,
+      and ghrub will suggest your regulars, what you forget, and what is running low.
+    </p>
+  <% } %>
+
+  <% filled.forEach((bucket) => { %>
     <%- include('insight-bucket', { trip, bucket }) %>
   <% }) %>
-</div>
+</section>

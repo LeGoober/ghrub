@@ -13,53 +13,48 @@
   <% } %>
 
   <% if (!rows.length) { %>
-    <p class="muted empty">Nothing tracked yet — add what you have at home above.</p>
+    <section class="card empty-card">
+      <span class="empty-icon"><%- include('icon', { name: 'kitchen' }) %></span>
+      <h2>Nothing tracked yet</h2>
+      <p class="muted">Add what you have at home, or scan a receipt to stock up in one go.</p>
+      <div class="empty-actions">
+        <button class="btn" type="button" data-sheet="track-item">Track an item</button>
+        <a class="btn ghost" href="/receipts">Scan a receipt</a>
+      </div>
+    </section>
   <% } else { %>
-    <div class="table-scroll">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th scope="col">Item</th>
-            <th scope="col" class="num">On hand</th>
-            <th scope="col" class="num">Restock at</th>
-            <th scope="col">Adjust</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% rows.forEach((row) => { %>
-            <tr class="<%= row.qty_on_hand <= row.low_threshold ? 'is-low' : '' %>">
-              <th scope="row">
-                <%= row.item_name %>
-                <% if (row.qty_on_hand <= row.low_threshold) { %>
-                  <span class="unpriced-flag">low</span>
-                <% } %>
-              </th>
-              <td class="num"><%= row.qty_on_hand %><%= row.unit ? ' ' + row.unit : '' %></td>
-              <td class="num"><%= row.low_threshold %></td>
-              <td>
-                <div class="nudge">
-                  <button
-                    class="btn ghost small"
-                    hx-patch="/inventory/<%= row.item_id %>"
-                    hx-vals='{"delta": -1}'
-                    hx-target="#inventory-table"
-                    hx-swap="outerHTML"
-                    aria-label="Remove one <%= row.item_name %>"
-                  >−</button>
-                  <button
-                    class="btn ghost small"
-                    hx-patch="/inventory/<%= row.item_id %>"
-                    hx-vals='{"delta": 1}'
-                    hx-target="#inventory-table"
-                    hx-swap="outerHTML"
-                    aria-label="Add one <%= row.item_name %>"
-                  >+</button>
-                </div>
-              </td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    </div>
+    <ul class="card list stock-list">
+      <% rows.forEach((row) => { %>
+        <% const low = row.qty_on_hand <= row.low_threshold; %>
+        <li class="row stock-row<%= low ? ' is-low' : '' %>">
+          <div class="row-main">
+            <span class="row-title">
+              <%= row.item_name %>
+              <% if (low) { %><span class="badge badge-warn">low</span><% } %>
+            </span>
+            <span class="row-meta">restock at <%= row.low_threshold %><%= row.category_label ? ` · ${row.category_label}` : '' %></span>
+          </div>
+          <div class="stepper">
+            <button
+              class="stepper-btn"
+              hx-patch="/inventory/<%= row.item_id %>"
+              hx-vals='{"delta": -1}'
+              hx-target="#inventory-table"
+              hx-swap="outerHTML"
+              aria-label="Remove one <%= row.item_name %>"
+            ><%- include('icon', { name: 'minus' }) %></button>
+            <span class="stepper-value"><%= row.qty_on_hand %><% if (row.unit) { %><small><%= row.unit %></small><% } %></span>
+            <button
+              class="stepper-btn"
+              hx-patch="/inventory/<%= row.item_id %>"
+              hx-vals='{"delta": 1}'
+              hx-target="#inventory-table"
+              hx-swap="outerHTML"
+              aria-label="Add one <%= row.item_name %>"
+            ><%- include('icon', { name: 'plus' }) %></button>
+          </div>
+        </li>
+      <% }) %>
+    </ul>
   <% } %>
 </div>
