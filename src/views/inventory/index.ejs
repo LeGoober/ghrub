@@ -1,46 +1,54 @@
 <%- include('../partials/head', { title }) %>
-  <header class="topbar">
-    <h1>Inventory</h1>
-    <nav class="topbar-links">
-      <a class="btn ghost" href="/recipes">Recipes</a>
-      <a class="btn ghost" href="/">← Home</a>
-    </nav>
+  <header class="app-bar app-bar-large">
+    <div class="app-bar-title">
+      <h1>Kitchen</h1>
+      <p class="app-bar-sub">What you have at home. Eating draws it down; buying puts it back.</p>
+    </div>
+    <button class="btn btn-sm" type="button" data-sheet="track-item">
+      <%- include('../partials/icon', { name: 'plus', cls: 'icon-sm' }) %> Track
+    </button>
   </header>
-  <p class="tagline">What you have at home. Eating a meal draws it down; ticking a line bought puts it back.</p>
 
-  <section class="card">
-    <h2>Track an item</h2>
-    <form
-      hx-post="/inventory"
-      hx-target="#inventory-table"
-      hx-swap="outerHTML"
-      hx-on::after-request="if (event.detail.successful) this.reset()"
-    >
-      <div class="row">
-        <label class="field grow">
+  <%- include('../partials/kitchen-nav', { current: 'inventory' }) %>
+
+  <%- include('../partials/inventory-table', { rows, lowStock, error: null }) %>
+
+  <dialog class="sheet" id="sheet-track-item" aria-labelledby="track-item-title">
+    <div class="sheet-panel">
+      <header class="sheet-head">
+        <h2 id="track-item-title">Track an item</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close"><%- include('../partials/icon', { name: 'close' }) %></button>
+      </header>
+      <form
+        class="form-stack"
+        hx-post="/inventory"
+        hx-target="#inventory-table"
+        hx-swap="outerHTML"
+        hx-on::after-request="if (event.detail.successful) this.reset()"
+      >
+        <label class="field">
           <span>Item</span>
           <input name="item_name" required autocomplete="off" placeholder="e.g. Eggs" list="catalog" />
           <datalist id="catalog">
             <% items.forEach((i) => { %><option value="<%= i.name %>"></option><% }) %>
           </datalist>
         </label>
+        <div class="field-row">
+          <label class="field">
+            <span>On hand</span>
+            <input name="qty_on_hand" type="number" inputmode="decimal" min="0" step="0.5" required value="1" />
+          </label>
+          <label class="field">
+            <span>Unit</span>
+            <input name="unit" placeholder="pack, carton, kg" autocomplete="off" />
+          </label>
+        </div>
         <label class="field">
-          <span>On hand</span>
-          <input name="qty_on_hand" type="number" inputmode="decimal" min="0" step="0.5" required value="1" />
-        </label>
-        <label class="field">
-          <span>Unit</span>
-          <input name="unit" placeholder="pack" />
-        </label>
-        <label class="field">
-          <span>Restock at</span>
+          <span>Restock when at or below</span>
           <input name="low_threshold" type="number" inputmode="decimal" min="0" step="0.5" value="1" />
         </label>
-        <button class="btn" type="submit">Track</button>
-      </div>
-    </form>
-  </section>
-
-  <h2 class="section-title">On hand</h2>
-  <%- include('../partials/inventory-table', { rows, lowStock, error: null }) %>
+        <button class="btn btn-lg" type="submit">Track</button>
+      </form>
+    </div>
+  </dialog>
 <%- include('../partials/foot') %>

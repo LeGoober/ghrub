@@ -1,50 +1,96 @@
-<section class="card trip-header" id="trip-header">
+<%
+  const fmtDay = (iso) =>
+    iso
+      ? new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
+      : null;
+  const store = stores.find((s) => s.id === trip.target_store_id);
+  const sub = [
+    trip.shop_date ? `Shop ${fmtDay(trip.shop_date)}` : null,
+    trip.end_date ? `lasts to ${fmtDay(trip.end_date)}` : null,
+    store ? store.name : null,
+  ].filter(Boolean).join(' · ');
+%>
+<section class="trip-head" id="trip-header">
+  <header class="app-bar">
+    <a class="icon-btn" href="/trips" aria-label="All trips"><%- include('icon', { name: 'back' }) %></a>
+    <div class="app-bar-title">
+      <h1><%= trip.name %></h1>
+      <% if (sub) { %><p class="app-bar-sub"><%= sub %></p><% } %>
+    </div>
+    <button class="icon-btn" type="button" data-sheet="trip-settings" aria-label="Trip settings"><%- include('icon', { name: 'more' }) %></button>
+  </header>
+
   <form
+    class="segmented"
     hx-patch="/trips/<%= trip.id %>"
     hx-target="#trip-header"
     hx-swap="outerHTML"
+    hx-trigger="change"
+    aria-label="Trip status"
   >
-    <div class="row">
-      <label class="field grow">
-        <span>Name</span>
-        <input name="name" value="<%= trip.name %>" required />
+    <% [['planning', 'Planning'], ['shopping', 'Shopping'], ['done', 'Done']].forEach(([value, label]) => { %>
+      <label>
+        <input type="radio" name="status" value="<%= value %>" <%= trip.status === value ? 'checked' : '' %> />
+        <span><%= label %></span>
       </label>
-      <label class="field">
-        <span>Status</span>
-        <select name="status">
-          <% ['planning', 'shopping', 'done'].forEach((s) => { %>
-            <option value="<%= s %>" <%= trip.status === s ? 'selected' : '' %>><%= s %></option>
-          <% }) %>
-        </select>
-      </label>
-      <button class="btn" type="submit">Save</button>
-    </div>
-    <div class="row">
-      <label class="field">
-        <span>Starts</span>
-        <input type="date" name="start_date" value="<%= trip.start_date || '' %>" />
-      </label>
-      <label class="field">
-        <span>Lasts until</span>
-        <input type="date" name="end_date" value="<%= trip.end_date || '' %>" />
-      </label>
-      <label class="field">
-        <span>Shop day</span>
-        <input type="date" name="shop_date" value="<%= trip.shop_date || '' %>" />
-      </label>
-      <label class="field">
-        <span>Budget (R)</span>
-        <input type="number" inputmode="decimal" name="budget" min="0" step="0.01" value="<%= trip.budget_cents != null ? (trip.budget_cents / 100).toFixed(2) : '' %>" />
-      </label>
-      <label class="field">
-        <span>Target store</span>
-        <select name="target_store_id">
-          <option value="">— any —</option>
-          <% stores.forEach((s) => { %>
-            <option value="<%= s.id %>" <%= trip.target_store_id === s.id ? 'selected' : '' %>><%= s.name %></option>
-          <% }) %>
-        </select>
-      </label>
-    </div>
+    <% }) %>
   </form>
+
+  <dialog class="sheet" id="sheet-trip-settings" aria-labelledby="trip-settings-title">
+    <div class="sheet-panel">
+      <header class="sheet-head">
+        <h2 id="trip-settings-title">Trip settings</h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close"><%- include('icon', { name: 'close' }) %></button>
+      </header>
+      <form
+        class="form-stack"
+        hx-patch="/trips/<%= trip.id %>"
+        hx-target="#trip-header"
+        hx-swap="outerHTML"
+      >
+        <label class="field">
+          <span>Name</span>
+          <input name="name" value="<%= trip.name %>" required autocomplete="off" />
+        </label>
+        <div class="field-row">
+          <label class="field">
+            <span>Starts</span>
+            <input type="date" name="start_date" value="<%= trip.start_date || '' %>" />
+          </label>
+          <label class="field">
+            <span>Lasts until</span>
+            <input type="date" name="end_date" value="<%= trip.end_date || '' %>" />
+          </label>
+        </div>
+        <label class="field">
+          <span>Shop day</span>
+          <input type="date" name="shop_date" value="<%= trip.shop_date || '' %>" />
+        </label>
+        <div class="field-row">
+          <label class="field">
+            <span>Budget (R)</span>
+            <input type="number" inputmode="decimal" name="budget" min="0" step="0.01" value="<%= trip.budget_cents != null ? (trip.budget_cents / 100).toFixed(2) : '' %>" />
+          </label>
+          <label class="field">
+            <span>Store</span>
+            <select name="target_store_id">
+              <option value="">Any</option>
+              <% stores.forEach((s) => { %>
+                <option value="<%= s.id %>" <%= trip.target_store_id === s.id ? 'selected' : '' %>><%= s.name %></option>
+              <% }) %>
+            </select>
+          </label>
+        </div>
+        <button class="btn btn-lg" type="submit">Save</button>
+      </form>
+      <button
+        class="btn btn-danger-ghost btn-lg"
+        type="button"
+        hx-delete="/trips/<%= trip.id %>"
+        hx-confirm="Delete “<%= trip.name %>” and everything on its list?"
+      >
+        <%- include('icon', { name: 'trash', cls: 'icon-sm' }) %> Delete trip
+      </button>
+    </div>
+  </dialog>
 </section>

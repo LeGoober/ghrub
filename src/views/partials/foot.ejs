@@ -89,6 +89,74 @@
         toast.addEventListener('click', () => toast.classList.remove('is-shown'));
       })();
 
+      // Bottom sheets: any [data-sheet="x"] opens <dialog id="sheet-x">; any
+      // [data-close] inside closes it, as does a tap on the backdrop. A form
+      // inside a sheet closes it once its request succeeds.
+      (() => {
+        const open = (id) => {
+          const sheet = document.getElementById(`sheet-${id}`);
+          if (sheet && !sheet.open) sheet.showModal();
+        };
+        document.addEventListener('click', (event) => {
+          const opener = event.target.closest('[data-sheet]');
+          if (opener) {
+            event.preventDefault();
+            open(opener.dataset.sheet);
+            return;
+          }
+          const closer = event.target.closest('[data-close]');
+          if (closer) {
+            closer.closest('dialog')?.close();
+            return;
+          }
+          if (event.target.matches('dialog.sheet')) event.target.close();
+        });
+        document.body.addEventListener('htmx:afterRequest', (event) => {
+          const sheet = event.detail.elt.closest?.('dialog.sheet');
+          if (sheet && event.detail.successful) sheet.close();
+        });
+      })();
+
+      // Rows that expand (a list line's editor, a meal-plan day) stay expanded
+      // when HTMX re-renders the list under them — otherwise every edit would
+      // snap the editor shut mid-task.
+      (() => {
+        const openKeys = new Set();
+        const sync = (el) => {
+          const key = el.dataset.keepOpen;
+          const isOpen = el.tagName === 'DETAILS' ? el.open : el.classList.contains('is-open');
+          if (isOpen) openKeys.add(key);
+          else openKeys.delete(key);
+        };
+        document.addEventListener('click', (event) => {
+          const toggle = event.target.closest('[data-toggle-open]');
+          if (!toggle) return;
+          const row = toggle.closest('[data-keep-open]');
+          if (!row) return;
+          row.classList.toggle('is-open');
+          toggle.setAttribute('aria-expanded', String(row.classList.contains('is-open')));
+          sync(row);
+        });
+        document.addEventListener(
+          'toggle',
+          (event) => {
+            if (event.target.matches?.('details[data-keep-open]')) sync(event.target);
+          },
+          true
+        );
+        document.body.addEventListener('htmx:afterSettle', () => {
+          for (const key of openKeys) {
+            const el = document.querySelector(`[data-keep-open="${CSS.escape(key)}"]`);
+            if (!el) continue;
+            if (el.tagName === 'DETAILS') el.open = true;
+            else {
+              el.classList.add('is-open');
+              el.querySelector('[data-toggle-open]')?.setAttribute('aria-expanded', 'true');
+            }
+          }
+        });
+      })();
+
       // Installability (M5). Registration is best-effort: the service worker
       // only caches the static shell, so a failure here costs nothing.
       if ('serviceWorker' in navigator) {

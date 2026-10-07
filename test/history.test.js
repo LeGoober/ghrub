@@ -22,8 +22,10 @@ describe('habit buckets + /history (M2 routes)', () => {
     expect(res.status).toBe(200);
     expect(res.text).toContain('id="insight-buckets"');
     expect(res.text).toContain('Your regulars');
-    expect(res.text).toContain('New this list');
     expect(res.text).toContain('Often forgotten');
+    // An empty bucket is not drawn on the workspace (docs/07 F5); a fresh trip
+    // has nothing "new" on it yet.
+    expect(res.text).not.toContain('id="bucket-new"');
     expect(res.text).toContain('Oats'); // a regular from the seed
     expect(res.text).toContain('You shop about every');
   });
@@ -91,8 +93,9 @@ describe('habit buckets + /history (M2 routes)', () => {
     // Counted by the chart class, not by <svg>: the bottom tab bar draws its
     // icons as inline SVG too, so a bare <svg> count measures the nav as well.
     expect((res.text.match(/class="chart"/g) || []).length).toBe(2);
-    // Every chart has a table-view twin, so no value is gated behind hover.
-    expect(res.text).toContain('<table');
+    // Every chart has a list-view twin with the full values, so no value is
+    // gated behind hover (a list of rows rather than a table since docs/07).
+    expect(res.text).toContain('class="row-value"');
     expect(res.text).toContain('Bambezela Spezial');
     // A legend is present because the spend chart carries two segment types.
     expect(res.text).toContain('Within budget');

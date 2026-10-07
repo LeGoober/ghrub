@@ -1,11 +1,10 @@
 <%- include('../partials/head', { title }) %>
-  <header class="topbar">
-    <h1>Scan a receipt</h1>
-    <nav class="topbar-links">
-      <a class="btn ghost" href="/inventory">Inventory</a>
-    </nav>
+  <header class="app-bar app-bar-large">
+    <div class="app-bar-title">
+      <h1>Scan</h1>
+      <p class="app-bar-sub">Photograph a till slip: it restocks the kitchen and ticks off your list. You check every line first.</p>
+    </div>
   </header>
-  <p class="tagline">Photograph a till slip and it becomes stock at home — and ticks off your list. You check the reading before anything is saved.</p>
 
   <section class="card scan-card" id="receipt-scanner">
     <input id="receipt-camera" class="visually-hidden" type="file" accept="<%= accepted.join(',') %>" capture="environment" />

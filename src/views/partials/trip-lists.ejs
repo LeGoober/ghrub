@@ -1,9 +1,12 @@
 <% if (!groups.length) { %>
-  <p class="muted empty">Nothing on the list yet — add your first item above.</p>
+  <section class="card empty-card empty-compact">
+    <span class="empty-icon"><%- include('icon', { name: 'basket' }) %></span>
+    <p class="muted">Nothing on the list yet — add your first item above.</p>
+  </section>
 <% } %>
 
 <% groups.forEach((g) => { %>
-  <section class="card category-group">
+  <section class="card list-group">
     <h3 class="group-head">
       <span><%= g.label %></span>
       <span class="group-total"><%= formatCents(g.subtotal_cents) %></span>

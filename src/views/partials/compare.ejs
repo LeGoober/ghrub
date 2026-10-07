@@ -1,5 +1,7 @@
 <section class="card compare" id="compare">
-  <h2>Where to shop</h2>
+  <div class="card-head">
+    <h2><%- include('icon', { name: 'store', cls: 'icon-sm icon-accent' }) %> Where to shop</h2>
+  </div>
 
   <% if (!comparison.hasPrices) { %>
     <p class="muted small">
@@ -9,7 +11,7 @@
   <% } else { %>
 
     <% if (comparison.cheapest && !comparison.cheapest.tied) { %>
-      <p class="verdict <%= comparison.thinComparison ? 'is-thin' : '' %>">
+      <p class="verdict<%= comparison.thinComparison ? ' is-thin' : '' %>">
         <strong><%= comparison.cheapest.storeName %></strong> is cheapest
         <% if (comparison.cheapest.savingVsNextCents) { %>
           by <strong><%= formatCents(comparison.cheapest.savingVsNextCents) %></strong>
@@ -19,49 +21,32 @@
       <p class="verdict">It is a tie on the comparable lines.</p>
     <% } %>
 
+    <ul class="store-rows">
+      <% comparison.stores.forEach((store) => { %>
+        <li class="store-row<%= store.isCheapest ? ' is-cheapest' : '' %>">
+          <div class="store-row-main">
+            <span class="store-name">
+              <%= store.storeName %>
+              <% if (store.isCheapest) { %><span class="badge-cheapest">cheapest</span><% } %>
+            </span>
+            <span class="store-meta">
+              prices <%= store.pricedCount %> of <%= store.pricedCount + store.unpricedCount %>
+              <% if (store.unpricedCount) { %>
+                · <span class="unpriced-flag" title="No price on file: <%= store.unpricedNames.join(', ') %>"><%= store.unpricedCount %> unpriced</span>
+              <% } %>
+              · all it prices <%= formatCents(store.subtotalCents) %>
+            </span>
+          </div>
+          <span class="store-total"><%= formatCents(store.comparableCents) %></span>
+        </li>
+      <% }) %>
+    </ul>
+
     <p class="muted small basis">
       Compared on the <%= comparison.comparableLineCount %> of
       <%= comparison.totalLineCount %> line<%= comparison.totalLineCount === 1 ? '' : 's' %>
       priced at every store<% if (comparison.thinComparison) { %> — too few to trust yet, add more prices<% } %>.
-    </p>
-
-    <div class="table-scroll">
-      <table class="data-table compare-table">
-        <thead>
-          <tr>
-            <th scope="col">Store</th>
-            <th scope="col" class="num">Comparable</th>
-            <th scope="col" class="num">All it prices</th>
-            <th scope="col" class="num">Covers</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% comparison.stores.forEach((store) => { %>
-            <tr class="<%= store.isCheapest ? 'is-cheapest' : '' %>">
-              <th scope="row">
-                <%= store.storeName %>
-                <% if (store.isCheapest) { %><span class="badge-cheapest">cheapest</span><% } %>
-              </th>
-              <td class="num"><%= formatCents(store.comparableCents) %></td>
-              <td class="num"><%= formatCents(store.subtotalCents) %></td>
-              <td class="num">
-                <%= store.pricedCount %>/<%= store.pricedCount + store.unpricedCount %>
-                <% if (store.unpricedCount) { %>
-                  <span class="unpriced-flag" title="No price on file: <%= store.unpricedNames.join(', ') %>">
-                    <%= store.unpricedCount %> unpriced
-                  </span>
-                <% } %>
-              </td>
-            </tr>
-          <% }) %>
-        </tbody>
-      </table>
-    </div>
-
-    <p class="muted small">
-      "Comparable" is the only like-for-like number — a store that knows fewer
-      prices would otherwise look cheaper just for knowing less. Unpriced lines
-      are flagged, never counted as free.
+      Unpriced lines are flagged, never counted as free.
     </p>
 
     <% if (comparison.splitShop && comparison.splitShop.stops.length > 1) { %>
@@ -84,9 +69,11 @@
           <ul class="stops">
             <% comparison.splitShop.stops.forEach((stop) => { %>
               <li>
-                <strong><%= stop.storeName %></strong>
-                <span class="muted"><%= formatCents(stop.subtotalCents) %></span>
-                <span class="stop-items"><%= stop.items.map((i) => i.itemName).join(', ') %></span>
+                <div class="stop-head">
+                  <strong><%= stop.storeName %></strong>
+                  <span><%= formatCents(stop.subtotalCents) %></span>
+                </div>
+                <span class="stop-items muted small"><%= stop.items.map((i) => i.itemName).join(', ') %></span>
               </li>
             <% }) %>
           </ul>

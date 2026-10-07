@@ -160,7 +160,10 @@ describe('PWA, empty and error states (M5)', () => {
       for (const path of PAGES) {
         const res = await request(app).get(path);
         expect((res.text.match(/class="tab is-current"/g) || []).length, path).toBe(1);
-        expect((res.text.match(/aria-current="page"/g) || []).length, path).toBe(1);
+        // Within the tab bar: the Kitchen pages also mark their own
+        // Inventory / Recipes switcher with aria-current.
+        const tabbar = res.text.slice(res.text.indexOf('<nav class="tabbar"'));
+        expect((tabbar.match(/aria-current="page"/g) || []).length, path).toBe(1);
       }
     });
 

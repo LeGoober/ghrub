@@ -21,7 +21,10 @@ describe('repo (src/db/repo.js)', () => {
   it('applies schema.sql on boot when tables are missing', async () => {
     expect(await db.count('trip')).toBe(0);
     expect(await db.count('item')).toBe(0);
-    expect(await db.count('store')).toBe(0);
+    // Reference data arrives with the migration (upgrades.sql), so a fresh
+    // database can file an item before anyone runs the seed.
+    expect(await db.count('store')).toBe(3);
+    expect(await db.count('category')).toBe(13);
   });
 
   it('creates, reads, updates and lists trips with integer-cents budget', async () => {
