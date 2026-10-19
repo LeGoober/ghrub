@@ -19,7 +19,7 @@
       hx-post="/meals/log"
       hx-target="#meal-log"
       hx-swap="outerHTML"
-      hx-on::after-request="if (event.detail.successful) this.reset()"
+      hx-on::after-request="if (event.detail.elt === this && event.detail.successful) this.reset()"
     >
       <div class="field-row">
         <label class="field">
@@ -83,7 +83,7 @@
         hx-post="/recipes"
         hx-target="#recipe-list"
         hx-swap="afterbegin"
-        hx-on::after-request="if (event.detail.successful) this.reset()"
+        hx-on::after-request="if (event.detail.elt === this && event.detail.successful) this.reset()"
       >
         <label class="field">
           <span>Name</span>
