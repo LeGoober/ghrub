@@ -369,7 +369,9 @@ export function tripsRouter(db) {
   router.get(
     '/trips/:id/items/suggest',
     wrap(async (req, res) => {
-      const q = blankToNull(req.query.q);
+      // The add field sends itself as item_name; ?q= is kept for callers
+      // that ask directly. Reading only ?q= meant no suggestion ever showed.
+      const q = blankToNull(req.query.q ?? req.query.item_name);
       const items = q ? await db.searchItems(q, 8) : [];
       res.render('partials/suggest', { items });
     })

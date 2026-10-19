@@ -24,7 +24,7 @@
         hx-post="/inventory"
         hx-target="#inventory-table"
         hx-swap="outerHTML"
-        hx-on::after-request="if (event.detail.successful) this.reset()"
+        hx-on::after-request="if (event.detail.elt === this && event.detail.successful) this.reset()"
       >
         <label class="field">
           <span>Item</span>
