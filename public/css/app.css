@@ -237,6 +237,13 @@ code {
   color: var(--muted);
 }
 
+/* The hidden attribute has to beat every component's display rule: author CSS
+   such as .preview { display: flex } otherwise overrides the browser's own
+   [hidden] { display: none } and shows what the markup says is hidden. */
+[hidden] {
+  display: none !important;
+}
+
 .visually-hidden {
   position: absolute !important;
   width: 1px;

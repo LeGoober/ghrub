@@ -14,7 +14,7 @@
       hx-post="/stores/prices"
       hx-target="#price-rows"
       hx-swap="outerHTML"
-      hx-on::after-request="if (event.detail.successful) { this.querySelector('[name=price]').value = ''; }"
+      hx-on::after-request="if (event.detail.elt === this && event.detail.successful) { this.querySelector('[name=price]').value = ''; }"
     >
       <div class="form-stack">
         <label class="field">
