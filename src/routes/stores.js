@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { toCents, formatCents } from '../lib/money.js';
 import { compareBasket } from '../lib/compare.js';
+import { guessCategory } from '../lib/receipt-text.js';
 import { wrap } from './wrap.js';
 
 /**
@@ -45,7 +46,9 @@ export function storesRouter(db) {
   router.get(
     '/stores/prices/suggest',
     wrap(async (req, res) => {
-      const q = String(req.query.q || '').trim();
+      // The input sends itself as item_name (hx-get includes the element's own
+      // name=value); reading only ?q= left the type-ahead permanently empty.
+      const q = String(req.query.q ?? req.query.item_name ?? '').trim();
       res.render('partials/suggest', { items: q ? await db.searchItems(q, 8) : [] });
     })
   );
@@ -69,7 +72,14 @@ export function storesRouter(db) {
 
       // Creating the catalog entry here keeps the prices page usable for things
       // that are not on any list yet.
-      const item = await db.getOrCreateItem(itemName, req.body.category_key || 'pantry');
+      const item = await db.getOrCreateItem(
+        itemName,
+        req.body.category_key ||
+          guessCategory(
+            itemName,
+            (await db.listCategories()).map((c) => c.key)
+          )
+      );
       await db.upsertStorePrice(item.id, storeId, priceCents, req.body.seen_date || null);
       await renderPricesTable(res);
     })

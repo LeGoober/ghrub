@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { logMealEaten, planGrid, MEAL_SLOTS } from '../lib/kitchen.js';
+import { guessCategory } from '../lib/receipt-text.js';
 import { wrap } from './wrap.js';
 
 const num = (value) => {
@@ -17,6 +18,9 @@ const num = (value) => {
  */
 export function kitchenRouter(db) {
   const router = Router();
+
+  /** Category keys for guessing where a new item belongs ("Eggs" -> dairy). */
+  const categoryKeys = async () => (await db.listCategories()).map((c) => c.key);
 
   const renderInventory = async (res, status = 200, error = null) => {
     const [rows, lowStock] = await Promise.all([db.listInventory(), db.lowStockItems()]);
@@ -99,7 +103,9 @@ export function kitchenRouter(db) {
       // row, and racing the upserts would let both miss the conflict.
       const ingredients = [];
       for (const name of names) {
-        const item = await db.getOrCreateItem(name, 'pantry');
+        // Only used when the ingredient is new to the catalog; a known item
+        // keeps its own category (see getOrCreateItem).
+        const item = await db.getOrCreateItem(name, guessCategory(name, await categoryKeys()));
         ingredients.push({ itemId: item.id, qty: 1 });
       }
       renderRecipe(res, await db.setRecipeIngredients(recipe.id, ingredients));
@@ -139,7 +145,10 @@ export function kitchenRouter(db) {
         await renderInventory(res, 400, 'Pick an item and a quantity of zero or more.');
         return;
       }
-      const item = await db.getOrCreateItem(name, req.body.category_key || 'pantry');
+      const item = await db.getOrCreateItem(
+        name,
+        req.body.category_key || guessCategory(name, await categoryKeys())
+      );
       await db.setInventory(item.id, {
         qtyOnHand: qty,
         unit: req.body.unit ? String(req.body.unit).trim() : null,

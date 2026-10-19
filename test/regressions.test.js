@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createDatabase } from '../src/db/repo.js';
@@ -80,6 +81,55 @@ describe('audit regressions', () => {
       .send({ item_name: 'Eggs', qty_on_hand: '12', unit: 'carton', low_threshold: '1' });
     expect(track.status).toBe(200);
     expect(track.text).toContain('Eggs');
+  });
+
+  describe('typing into a form (2026-10-19: fields would not keep text)', () => {
+    it('no form resets itself when a lookup inside it finishes', async () => {
+      // htmx:afterRequest bubbles. The add form reset itself on success, and
+      // the type-ahead GET from the input inside it is a success too — so
+      // every pause while typing wiped what had been typed. Every reset must
+      // check that the request was the form's own.
+      const trip = await db.createTrip({ name: 'Shop' });
+      for (const path of [`/trips/${trip.id}`, '/inventory', '/recipes', '/stores/prices']) {
+        const res = await request(app).get(path);
+        const handlers = res.text.match(/hx-on::after-request="[^"]*"/g) || [];
+        for (const handler of handlers) {
+          expect(handler, path).toContain('event.detail.elt === this');
+        }
+      }
+      const foot = readFileSync('src/views/partials/foot.ejs', 'utf8');
+      expect(foot).toContain("elt.matches?.('form')");
+    });
+
+    it('the trip type-ahead answers what the input actually sends', async () => {
+      // hx-get on <input name="item_name"> sends ?item_name=, never ?q=.
+      await db.getOrCreateItem('Milk', 'dairy_eggs');
+      const trip = await db.createTrip({ name: 'Shop' });
+      const res = await request(app).get(`/trips/${trip.id}/items/suggest?item_name=mi`);
+      expect(res.text).toContain('data-pick-name="Milk"');
+    });
+
+    it('the prices type-ahead answers what the input actually sends', async () => {
+      await db.getOrCreateItem('Milk', 'dairy_eggs');
+      const res = await request(app).get('/stores/prices/suggest?item_name=mil');
+      expect(res.text).toContain('data-pick-name="Milk"');
+    });
+
+    it('a new item tracked in the kitchen is filed by its name, not under Pantry', async () => {
+      await request(app)
+        .post('/inventory')
+        .type('form')
+        .send({ item_name: 'Eggs', qty_on_hand: '12', unit: 'carton', low_threshold: '1' });
+      const [row] = await db.listInventory();
+      expect(row.category_key).toBe('dairy_eggs');
+    });
+
+    it('the hidden attribute beats component display rules', () => {
+      // .preview { display: flex } was showing "The receipt you selected"
+      // and "Choose another" on the Scan page before any photo was picked.
+      const css = readFileSync('public/css/app.css', 'utf8');
+      expect(css).toMatch(/\[hidden\]\s*\{\s*display:\s*none\s*!important/);
+    });
   });
 
   it('the dashboard shows what is running low', async () => {

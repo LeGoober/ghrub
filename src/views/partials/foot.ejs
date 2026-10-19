@@ -111,9 +111,12 @@
           }
           if (event.target.matches('dialog.sheet')) event.target.close();
         });
+        // Only a form's own submit closes its sheet — htmx:afterRequest
+        // bubbles, so a type-ahead lookup inside would otherwise close it.
         document.body.addEventListener('htmx:afterRequest', (event) => {
-          const sheet = event.detail.elt.closest?.('dialog.sheet');
-          if (sheet && event.detail.successful) sheet.close();
+          const elt = event.detail.elt;
+          if (!elt.matches?.('form') || !event.detail.successful) return;
+          elt.closest('dialog.sheet')?.close();
         });
       })();
 
